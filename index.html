@@ -1,0 +1,3129 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tetris ลอยกระทง: สำรวจก่อนสร้าง (ม.5)</title>
+    <!-- นำเข้าฟอนต์ภาษาไทยน่ารัก อ่านง่ายจาก Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ==========================================================================
+           ตัวแปรสีและธีม (พาสเทลลอยกระทง มินิมอล)
+           ========================================================================== */
+        :root {
+            --bg-sky-top: #7c679b;
+            --bg-sky-mid: #d68fa8;
+            --bg-sky-bot: #f6c492;
+            --glass-bg: rgba(255, 255, 255, 0.78);
+            --glass-border: rgba(255, 255, 255, 0.9);
+            --glass-shadow: 0 8px 32px rgba(74, 49, 102, 0.15);
+            --text-main: #432c59;
+            --text-muted: #765c8f;
+            --accent-pink: #f07b9c;
+            --accent-pink-hover: #e36287;
+            --accent-purple: #9b7ede;
+            --accent-purple-hover: #8363cc;
+            --accent-gold: #f5b841;
+            --accent-teal: #5bc0be;
+            --danger: #e86a6a;
+            --success: #52b788;
+            --radius-lg: 22px;
+            --radius-md: 14px;
+            --radius-sm: 10px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Mali', cursive, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            color: var(--text-main);
+            background: linear-gradient(180deg, var(--bg-sky-top) 0%, var(--bg-sky-mid) 52%, var(--bg-sky-bot) 100%);
+        }
+
+        /* อนุญาตให้พิมพ์ข้อความในช่อง input, textarea และ pre ได้ */
+        input, textarea, pre {
+            user-select: text;
+        }
+
+        /* ==========================================================================
+           ฉากหลังวันลอยกระทง (SVG + CSS Animation แบบนุ่มนวล)
+           ========================================================================== */
+        #scenery {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .moon {
+            position: absolute;
+            top: 7%;
+            right: 12%;
+            width: clamp(70px, 11vw, 120px);
+            height: clamp(70px, 11vw, 120px);
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #fffdf5 0%, #fce8a6 70%, #f5d076 100%);
+            box-shadow: 0 0 45px 15px rgba(255, 240, 180, 0.45);
+        }
+
+        .star {
+            position: absolute;
+            background: #fffbe6;
+            border-radius: 50%;
+            animation: twinkle 3.5s infinite ease-in-out alternate;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0.25; transform: scale(0.85); }
+            100% { opacity: 0.95; transform: scale(1.15); }
+        }
+
+        .lantern {
+            position: absolute;
+            bottom: 24%;
+            width: 24px;
+            height: 32px;
+            border-radius: 10px 10px 4px 4px;
+            opacity: 0.85;
+            animation: floatUp linear infinite;
+        }
+        .lantern::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 25%;
+            width: 50%;
+            height: 4px;
+            background: #fff3b0;
+            border-radius: 2px;
+            box-shadow: 0 0 10px 3px rgba(255, 210, 100, 0.8);
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) translateX(0) scale(0.9); opacity: 0; }
+            15% { opacity: 0.85; }
+            50% { transform: translateY(-35vh) translateX(15px) scale(0.75); }
+            85% { opacity: 0.7; }
+            100% { transform: translateY(-75vh) translateX(-10px) scale(0.5); opacity: 0; }
+        }
+
+        .temple-horizon {
+            position: absolute;
+            bottom: 23%;
+            left: 0;
+            width: 100%;
+            height: 140px;
+        }
+
+        .river {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 24%;
+            background: linear-gradient(180deg, #8b7bb8 0%, #635796 55%, #483e75 100%);
+            border-top: 2px solid rgba(255, 224, 178, 0.45);
+            overflow: hidden;
+        }
+
+        .moon-reflection {
+            position: absolute;
+            top: 8%;
+            right: 13%;
+            width: 90px;
+            height: 80%;
+            background: repeating-linear-gradient(
+                180deg,
+                rgba(255, 242, 185, 0.28) 0px,
+                rgba(255, 242, 185, 0.28) 4px,
+                transparent 4px,
+                transparent 12px
+            );
+            border-radius: 50%;
+            filter: blur(2px);
+            animation: shimmer 4s infinite ease-in-out alternate;
+        }
+        @keyframes shimmer {
+            0% { transform: scaleX(0.9); opacity: 0.6; }
+            100% { transform: scaleX(1.1); opacity: 0.9; }
+        }
+
+        .wave-line {
+            position: absolute;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.22);
+            border-radius: 2px;
+            animation: waveDrift 8s infinite ease-in-out alternate;
+        }
+        @keyframes waveDrift {
+            0% { transform: translateX(-15px); }
+            100% { transform: translateX(15px); }
+        }
+
+        .thai-boat {
+            position: absolute;
+            top: 12%;
+            left: -120px;
+            width: 95px;
+            height: 36px;
+            animation: boatSail 48s linear infinite;
+            opacity: 0.85;
+        }
+        @keyframes boatSail {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(calc(100vw + 240px)); }
+        }
+
+        #krathong-river-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        .floating-krathong {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            will-change: transform;
+            animation: krathongBob 2.6s infinite ease-in-out alternate;
+        }
+        @keyframes krathongBob {
+            0% { margin-top: 0px; }
+            100% { margin-top: 4px; }
+        }
+        .wish-tag {
+            background: rgba(255, 253, 245, 0.9);
+            color: #4a2e63;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            white-space: nowrap;
+            max-width: 170px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+            border: 1px solid #f7d58b;
+        }
+        .candle-flame {
+            animation: flicker 0.6s infinite alternate ease-in-out;
+            transform-origin: center bottom;
+        }
+        @keyframes flicker {
+            0% { transform: scale(0.9) rotate(-3deg); opacity: 0.85; }
+            100% { transform: scale(1.1) rotate(3deg); opacity: 1; }
+        }
+
+        /* ==========================================================================
+           โครงสร้างหลักและแถบเครื่องมือด้านบน
+           ========================================================================== */
+        #app {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 10px 14px;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .brand-badge {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1.5px solid var(--glass-border);
+            border-radius: 99px;
+            padding: 6px 14px;
+            font-weight: 700;
+            font-size: clamp(13px, 2.2vw, 16px);
+            box-shadow: var(--glass-shadow);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .audio-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1.5px solid var(--glass-border);
+            border-radius: 99px;
+            padding: 4px 10px;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .volume-slider {
+            width: 65px;
+            accent-color: var(--accent-pink);
+            cursor: pointer;
+        }
+
+        /* ==========================================================================
+           ปุ่มกดสไตล์มินิมอลพาสเทล
+           ========================================================================== */
+        .btn {
+            border: none;
+            border-radius: 99px;
+            padding: 9px 18px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 4px 12px rgba(74, 49, 102, 0.14);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(74, 49, 102, 0.22);
+        }
+        .btn:active {
+            transform: translateY(1px) scale(0.97);
+        }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+        .btn-icon {
+            padding: 6px 10px;
+            font-size: 15px;
+            border-radius: 99px;
+            background: rgba(255, 255, 255, 0.85);
+            color: var(--text-main);
+            border: 1px solid rgba(155, 126, 222, 0.3);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #f48fb1 0%, #f06292 100%);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #f06292 0%, #ec407a 100%);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #b39ddb 0%, #9575cd 100%);
+            color: #fff;
+        }
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #9575cd 0%, #7e57c2 100%);
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, #ffd54f 0%, #ffb74d 100%);
+            color: #4a2e16;
+        }
+
+        .btn-glass {
+            background: rgba(255, 255, 255, 0.85);
+            color: var(--text-main);
+            border: 1.5px solid rgba(155, 126, 222, 0.35);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef9a9a 0%, #e57373 100%);
+            color: #fff;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
+            color: #fff;
+        }
+
+        /* ==========================================================================
+           กล่องโปร่งแสงฝ้า (Frosted Glass Card)
+           ========================================================================== */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 2px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--glass-shadow);
+        }
+
+        /* ==========================================================================
+           หน้าเมนูหลัก (Main Menu Screen)
+           ========================================================================== */
+        #menu-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            overflow-y: auto;
+            padding: 6px;
+        }
+
+        .menu-card {
+            width: 100%;
+            max-width: 540px;
+            padding: 20px 24px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .game-title {
+            font-size: clamp(22px, 4.5vw, 32px);
+            font-weight: 700;
+            color: var(--text-main);
+            line-height: 1.25;
+        }
+        .game-subtitle {
+            font-size: clamp(13px, 2.5vw, 15px);
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .difficulty-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        .diff-btn {
+            padding: 10px 8px;
+            border-radius: var(--radius-md);
+            border: 2px solid rgba(155, 126, 222, 0.3);
+            background: rgba(255, 255, 255, 0.65);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: center;
+        }
+        .diff-btn:hover {
+            background: rgba(255, 255, 255, 0.95);
+        }
+        .diff-btn.active {
+            border-color: var(--accent-pink);
+            background: linear-gradient(135deg, #fff0f5 0%, #ffe4ec 100%);
+            box-shadow: 0 4px 12px rgba(240, 123, 156, 0.25);
+            transform: scale(1.02);
+        }
+        .diff-title {
+            font-weight: 700;
+            font-size: 15px;
+            display: block;
+        }
+        .diff-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: block;
+            margin-top: 2px;
+        }
+
+        .menu-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .wish-box {
+            width: 100%;
+            max-width: 540px;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .wish-form {
+            display: flex;
+            gap: 8px;
+        }
+        .wish-input {
+            flex: 1;
+            border: 2px solid rgba(155, 126, 222, 0.4);
+            border-radius: 99px;
+            padding: 8px 14px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.9);
+            color: var(--text-main);
+            outline: none;
+        }
+        .wish-input:focus {
+            border-color: var(--accent-pink);
+        }
+
+        /* ==========================================================================
+           หน้าจอเล่นเกม (Game Screen)
+           ========================================================================== */
+        #game-screen {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 0;
+            gap: 6px;
+        }
+
+        .game-layout {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(8px, 2vw, 18px);
+            width: 100%;
+            max-width: 820px;
+            min-height: 0;
+        }
+
+        .side-col {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: clamp(92px, 18vw, 145px);
+        }
+
+        .stat-card {
+            padding: 10px 8px;
+            text-align: center;
+            border-radius: var(--radius-md);
+        }
+        .stat-label {
+            font-size: clamp(11px, 1.8vw, 13px);
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .stat-value {
+            font-size: clamp(18px, 3vw, 24px);
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .mini-canvas {
+            display: block;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.45);
+            border-radius: var(--radius-sm);
+        }
+
+        .board-wrapper {
+            position: relative;
+            height: 100%;
+            max-height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            border-radius: var(--radius-lg);
+        }
+
+        #tetris-canvas {
+            display: block;
+            background: rgba(255, 255, 255, 0.62);
+            border-radius: var(--radius-md);
+            box-shadow: inset 0 2px 10px rgba(74, 49, 102, 0.12);
+            touch-action: none;
+        }
+
+        .touch-controls {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 6px;
+            width: 100%;
+            max-width: 520px;
+            padding-bottom: 4px;
+        }
+        .ctrl-btn {
+            background: rgba(255, 255, 255, 0.85);
+            border: 1.5px solid rgba(155, 126, 222, 0.4);
+            border-radius: 16px;
+            padding: 10px 4px;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 3px 8px rgba(74, 49, 102, 0.12);
+        }
+        .ctrl-btn span {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+        .ctrl-btn:active {
+            background: #ffe4ec;
+            transform: scale(0.94);
+        }
+
+        /* ==========================================================================
+           หน้าต่างป๊อปอัป (Modal)
+           ========================================================================== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(54, 34, 77, 0.48);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .modal-overlay.open {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-box {
+            width: 100%;
+            max-width: 520px;
+            max-height: 88vh;
+            overflow-y: auto;
+            background: rgba(255, 253, 250, 0.96);
+            border: 2.5px solid #fff;
+            border-radius: var(--radius-lg);
+            padding: 22px;
+            box-shadow: 0 16px 48px rgba(48, 28, 71, 0.28);
+            animation: popScale 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+        }
+        @keyframes popScale {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 8px;
+        }
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .knowledge-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #e1bee7 0%, #f8bbd0 100%);
+            color: #4a235a;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 99px;
+            margin-bottom: 8px;
+        }
+        .knowledge-content {
+            background: #fdf8ff;
+            border: 1.5px solid #eadcf8;
+            border-radius: var(--radius-md);
+            padding: 14px;
+            font-size: 15px;
+            line-height: 1.65;
+            color: #3c2652;
+            margin-bottom: 14px;
+        }
+
+        .quiz-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .quiz-opt-btn {
+            width: 100%;
+            text-align: left;
+            padding: 11px 14px;
+            border-radius: var(--radius-md);
+            border: 2px solid #e2d4f0;
+            background: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.14s ease;
+        }
+        .quiz-opt-btn:hover:not(:disabled) {
+            border-color: var(--accent-purple);
+            background: #f8f3ff;
+        }
+        .quiz-opt-btn.correct {
+            border-color: var(--success);
+            background: #e8f8f0;
+            color: #1b4332;
+        }
+        .quiz-opt-btn.wrong {
+            border-color: var(--danger);
+            background: #fdecec;
+            color: #7f1d1d;
+        }
+
+        .tab-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            flex: 1;
+            min-width: 70px;
+            padding: 7px 6px;
+            border-radius: 99px;
+            border: 1.5px solid #dfd3ed;
+            background: #f7f3fc;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .tab-btn.active {
+            background: var(--accent-pink);
+            color: #fff;
+            border-color: var(--accent-pink);
+        }
+
+        .rank-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .rank-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            background: #f9f5ff;
+            font-size: 14px;
+        }
+        .rank-item:nth-child(1) { background: #fff9db; border: 1.5px solid #ffe066; font-weight: 700; }
+        .rank-item:nth-child(2) { background: #f1f3f5; border: 1.5px solid #dee2e6; font-weight: 700; }
+        .rank-item:nth-child(3) { background: #fff4e6; border: 1.5px solid #ffc078; font-weight: 700; }
+
+        .star-rating {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 8px 0;
+        }
+        .star-btn {
+            font-size: 30px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            filter: grayscale(1) opacity(0.45);
+            transition: transform 0.12s ease, filter 0.12s ease;
+        }
+        .star-btn.active {
+            filter: grayscale(0) opacity(1);
+            transform: scale(1.15);
+        }
+
+        .codex-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .codex-card {
+            padding: 12px;
+            border-radius: var(--radius-md);
+            border: 1.5px solid #e6d8f5;
+            background: #fff;
+        }
+        .codex-card.locked {
+            background: #f3eff7;
+            opacity: 0.72;
+        }
+
+        /* กล่องโค้ดตัวอย่าง Google Apps Script */
+        .code-snippet {
+            background: #2b213a;
+            color: #f8f8f2;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 11px;
+            line-height: 1.45;
+            overflow-x: auto;
+            white-space: pre;
+            margin-top: 6px;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 99px;
+        }
+        .status-pill.connected {
+            background: #e8f8f0;
+            color: #1b4332;
+            border: 1px solid #8ce99a;
+        }
+        .status-pill.disconnected {
+            background: #fff3bf;
+            color: #7f4f24;
+            border: 1px solid #ffe066;
+        }
+
+        #toast {
+            position: fixed;
+            top: 56px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            z-index: 200;
+            background: rgba(67, 44, 89, 0.92);
+            color: #fff;
+            padding: 8px 18px;
+            border-radius: 99px;
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s ease;
+        }
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .key-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+        .key-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #eee4f7;
+        }
+        .kbd {
+            display: inline-block;
+            background: #f1e8fa;
+            border: 1px solid #d2beeb;
+            border-radius: 6px;
+            padding: 2px 7px;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        @media (max-width: 600px) {
+            .side-col {
+                width: 82px;
+                gap: 6px;
+            }
+            .stat-card {
+                padding: 6px 4px;
+            }
+            .menu-card {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==========================================================================
+         1. ฉากหลังวันลอยกระทง (SVG + CSS แบบมินิมอล)
+         ========================================================================== -->
+    <div id="scenery" aria-hidden="true">
+        <div class="moon"></div>
+        <div id="stars-layer"></div>
+        <div id="lanterns-layer"></div>
+
+        <svg class="temple-horizon" viewBox="0 0 1200 160" preserveAspectRatio="none">
+            <defs>
+                <linearGradient id="templeGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#8b6fa8" stop-opacity="0.75"/>
+                    <stop offset="100%" stop-color="#6a518a" stop-opacity="0.92"/>
+                </linearGradient>
+                <radialGradient id="templeGlow" cx="50%" cy="60%" r="50%">
+                    <stop offset="0%" stop-color="#ffe8a3" stop-opacity="0.45"/>
+                    <stop offset="100%" stop-color="#ffe8a3" stop-opacity="0"/>
+                </radialGradient>
+            </defs>
+            <ellipse cx="260" cy="110" rx="180" ry="60" fill="url(#templeGlow)"/>
+            <path d="M0,160 L0,130 Q120,122 200,130 L200,105 L220,90 L215,90 L235,72 L255,90 L250,90 L270,105 L270,130 
+                     L295,130 L305,95 L312,60 L315,32 L318,60 L325,95 L335,130 
+                     L355,130 L355,110 L380,92 L405,110 L405,130 
+                     Q650,120 920,128 Q1080,122 1200,128 L1200,160 Z" fill="url(#templeGrad)"/>
+        </svg>
+
+        <div class="river">
+            <div class="moon-reflection"></div>
+            <div class="wave-line" style="top: 22%; left: 10%; width: 120px;"></div>
+            <div class="wave-line" style="top: 48%; left: 45%; width: 160px; animation-delay: 1.5s;"></div>
+            <div class="wave-line" style="top: 72%; left: 25%; width: 140px; animation-delay: 3s;"></div>
+            <div class="wave-line" style="top: 35%; left: 72%; width: 110px; animation-delay: 2s;"></div>
+
+            <svg class="thai-boat" viewBox="0 0 120 45">
+                <path d="M5,28 Q20,42 60,42 Q100,42 115,28 Q95,33 60,33 Q25,33 5,28 Z" fill="#4a3563"/>
+                <rect x="38" y="21" width="44" height="10" rx="4" fill="#6d4e8f"/>
+                <circle cx="35" cy="22" r="3" fill="#ffd166"/>
+                <circle cx="85" cy="22" r="3" fill="#ffd166"/>
+            </svg>
+
+            <div id="krathong-river-layer"></div>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <!-- ==========================================================================
+         2. พื้นที่แอปพลิเคชันหลัก
+         ========================================================================== -->
+    <div id="app">
+        <header class="top-bar">
+            <div class="brand-badge">
+                <span>🪷</span>
+                <span>การออกแบบและเทคโนโลยี ม.5 : สำรวจก่อนสร้าง</span>
+            </div>
+
+            <div class="audio-controls">
+                <button id="btn-open-gas-settings" class="btn btn-icon" title="ตั้งค่าลิงก์ Google Sheets รับคอมเมนต์">⚙️</button>
+                <button id="btn-toggle-music" class="btn btn-icon" title="เปิด/ปิดเพลงประกอบ">🎵</button>
+                <input id="music-volume" class="volume-slider" type="range" min="0" max="1" step="0.05" value="0.4" title="ความดังเพลง">
+                <button id="btn-toggle-sfx" class="btn btn-icon" title="เปิด/ปิดเสียงเอฟเฟกต์">🔊</button>
+            </div>
+        </header>
+
+        <!-- หน้าจอเมนูหลัก -->
+        <main id="menu-screen">
+            <section class="glass-panel menu-card">
+                <div>
+                    <h1 class="game-title">🪷 Tetris ลอยกระทง ✨</h1>
+                    <p class="game-subtitle">บทที่ 1 ความรู้กับการแก้ปัญหา : สำรวจก่อนสร้าง (สร้างอย่างมีความรู้)</p>
+                </div>
+
+                <div>
+                    <div style="font-size: 14px; font-weight: 700; margin-bottom: 8px; color: var(--text-muted);">
+                        เลือกระดับความท้าทาย
+                    </div>
+                    <div class="difficulty-grid" id="difficulty-selector">
+                        <div class="diff-btn active" data-mode="easy">
+                            <span class="diff-title">🌸 ง่าย</span>
+                            <span class="diff-desc">ตกช้า • มีเงาบล็อก</span>
+                        </div>
+                        <div class="diff-btn" data-mode="medium">
+                            <span class="diff-title">🏮 ปานกลาง</span>
+                            <span class="diff-desc">เร็วปานกลาง • มีเงาบล็อก</span>
+                        </div>
+                        <div class="diff-btn" data-mode="hard">
+                            <span class="diff-title">🌕 ยาก</span>
+                            <span class="diff-desc">ตกเร็ว • ไม่มีเงาบล็อก</span>
+                        </div>
+                        <div class="diff-btn" data-mode="expert">
+                            <span class="diff-title">🔥 ยากมาก</span>
+                            <span class="diff-desc">เร็วสูงสุด • ไม่มีเงาบล็อก</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2px;">
+                    <button id="btn-start-game" class="btn btn-primary" style="width: 100%; font-size: 18px; padding: 12px;">
+                        ▶ เริ่มเกม
+                    </button>
+                </div>
+
+                <div class="menu-actions">
+                    <button id="btn-open-codex" class="btn btn-secondary btn-sm">
+                        📖 สมุดความรู้ (<span id="codex-count-badge">0/15</span>)
+                    </button>
+                    <button id="btn-open-leaderboard" class="btn btn-gold btn-sm">
+                        🏆 อันดับคะแนน
+                    </button>
+                    <button id="btn-open-howto" class="btn btn-glass btn-sm">
+                        ❓ วิธีเล่น & ปุ่มกด
+                    </button>
+                </div>
+            </section>
+
+            <!-- กล่องคำอธิษฐานลอยกระทง -->
+            <section class="glass-panel wish-box">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 13px; font-weight: 700;">✨ อธิษฐานขอพรลอยกระทง (บันทึกถาวรในเครื่อง)</span>
+                    <span id="wish-char-count" style="font-size: 11px; color: var(--text-muted);">0/60</span>
+                </div>
+                <form id="wish-form" class="wish-form">
+                    <input id="wish-input" class="wish-input" type="text" maxlength="60" placeholder="พิมพ์คำอธิษฐานของคุณที่นี่..." autocomplete="off">
+                    <button type="submit" class="btn btn-primary btn-sm">ลอยกระทง 🪷</button>
+                </form>
+            </section>
+        </main>
+
+        <!-- หน้าจอขณะเล่นเกม -->
+        <main id="game-screen">
+            <div class="game-layout">
+                <div class="side-col">
+                    <div class="glass-panel stat-card">
+                        <div class="stat-label">เก็บไว้ (R)</div>
+                        <canvas id="hold-canvas" class="mini-canvas" width="76" height="60"></canvas>
+                    </div>
+
+                    <div class="glass-panel stat-card">
+                        <div class="stat-label">คะแนน</div>
+                        <div id="stat-score" class="stat-value">0</div>
+                    </div>
+
+                    <div class="glass-panel stat-card">
+                        <div class="stat-label">โหมด</div>
+                        <div id="stat-mode" style="font-size: 13px; font-weight: 700; color: var(--accent-pink-hover);">ง่าย</div>
+                    </div>
+
+                    <button id="btn-pause" class="btn btn-glass btn-sm" style="width: 100%;">⏸ พักเกม</button>
+                    <button id="btn-stop" class="btn btn-danger btn-sm" style="width: 100%;">⏹ หยุดเกม</button>
+                </div>
+
+                <div class="glass-panel board-wrapper" id="board-container">
+                    <canvas id="tetris-canvas"></canvas>
+                </div>
+
+                <div class="side-col">
+                    <div class="glass-panel stat-card">
+                        <div class="stat-label">บล็อกถัดไป</div>
+                        <canvas id="next-canvas" class="mini-canvas" width="76" height="60"></canvas>
+                    </div>
+
+                    <div class="glass-panel stat-card">
+                        <div class="stat-label">แถวที่เคลียร์</div>
+                        <div id="stat-lines" class="stat-value">0</div>
+                    </div>
+
+                    <div class="glass-panel stat-card">
+                        <div class="stat-label">เลเวล</div>
+                        <div id="stat-level" class="stat-value">1</div>
+                    </div>
+
+                    <button id="btn-ingame-codex" class="btn btn-secondary btn-sm" style="width: 100%; font-size: 12px;">
+                        📖 สมุดความรู้
+                    </button>
+                </div>
+            </div>
+
+            <div class="touch-controls">
+                <button class="ctrl-btn" data-action="left">⬅️<span>ซ้าย</span></button>
+                <button class="ctrl-btn" data-action="down">⬇️<span>ลงเร็ว</span></button>
+                <button class="ctrl-btn" data-action="right">➡️<span>ขวา</span></button>
+                <button class="ctrl-btn" data-action="rotate">🔄<span>หมุน</span></button>
+                <button class="ctrl-btn" data-action="hold">📦<span>เก็บ/สลับ</span></button>
+                <button class="ctrl-btn" data-action="drop">⏬<span>ตกทันที</span></button>
+            </div>
+        </main>
+    </div>
+
+    <!-- ==========================================================================
+         3. หน้าต่างป๊อปอัปต่าง ๆ (Modals)
+         ========================================================================== -->
+
+    <!-- Modal: ตั้งค่าการเชื่อมต่อ Google Sheets (Google Apps Script URL) -->
+    <div id="modal-gas-settings" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title">📊 เชื่อมต่อ Google Sheets</span>
+                <button class="btn btn-glass btn-sm modal-close-btn">✕ ปิด</button>
+            </div>
+
+            <div style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                <span style="font-size: 13px; font-weight: 700;">สถานะการเชื่อมต่อ:</span>
+                <span id="gas-status-badge" class="status-pill disconnected">⚠️ ยังไม่ได้ตั้งค่า URL</span>
+            </div>
+
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.55; margin-bottom: 10px;">
+                วางลิงก์ <strong>Web App URL</strong> จาก Google Apps Script ด้านล่าง เพื่อรับคะแนนดาวและคอมเมนต์จากผู้เล่นเข้าสู่ Google Sheets โดยอัตโนมัติ (รองรับทั้งการใส่ในช่องนี้หรือใส่ในโค้ด <code>DEFAULT_GAS_URL</code>)
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+                <input id="gas-url-input" class="wish-input" type="url" placeholder="https://script.google.com/macros/s/.../exec" style="border-radius: 12px;">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button id="btn-save-gas-url" class="btn btn-primary btn-sm" style="flex: 1;">💾 บันทึกลิงก์</button>
+                    <button id="btn-test-gas-url" class="btn btn-success btn-sm">🧪 ทดสอบส่งข้อมูล</button>
+                    <button id="btn-clear-gas-url" class="btn btn-glass btn-sm">🗑️ ล้างค่า</button>
+                </div>
+            </div>
+
+            <details style="background: #f9f5ff; border: 1.5px solid #e6d8f5; border-radius: 12px; padding: 10px 12px; font-size: 12px;">
+                <summary style="font-weight: 700; cursor: pointer; color: var(--text-main);">
+                    📘 วิธีสร้างลิงก์ Google Sheets (คลิกเพื่อดูขั้นตอนและโค้ด)
+                </summary>
+                <ol style="margin: 8px 0 6px 18px; line-height: 1.6; color: #432c59;">
+                    <li>เปิด <strong>Google Sheets</strong> สร้างชีตใหม่</li>
+                    <li>ไปที่เมนู <strong>ส่วนขยาย (Extensions) &gt; Apps Script</strong></li>
+                    <li>ลบโค้ดเดิมออก แล้ววางโค้ดด้านล่างนี้ลงไป จากนั้นกด <strong>บันทึก (💾)</strong></li>
+                    <li>กดปุ่ม <strong>ทำให้ใช้งานได้ (Deploy) &gt; การทำให้ใช้งานได้รายการใหม่ (New deployment)</strong></li>
+                    <li>เลือกประเภทเป็น <strong>เว็บแอป (Web app)</strong> ตั้งค่าผู้มีสิทธิ์เข้าถึงเป็น <strong>ทุกคน (Anyone)</strong> แล้วกด Deploy</li>
+                    <li>คัดลอก <strong>URL ของเว็บแอป</strong> มาวางในช่องด้านบนแล้วกดบันทึก</li>
+                </ol>
+                <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
+                    <button id="btn-copy-gas-code" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 10px;">📋 คัดลอกโค้ด Apps Script</button>
+                </div>
+                <pre id="gas-sample-code" class="code-snippet">function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(["วันเวลา", "ชื่อเล่น", "โหมดที่เล่น", "คะแนน", "จำนวนดาว", "ความคิดเห็น"]);
+  }
+  var data = JSON.parse(e.postData.contents);
+  sheet.appendRow([
+    data.timestamp || new Date().toLocaleString("th-TH"),
+    data.nickname || "ไม่ระบุชื่อ",
+    data.mode || "-",
+    data.score || 0,
+    data.stars || 0,
+    data.comment || ""
+  ]);
+  return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+            </details>
+        </div>
+    </div>
+
+    <!-- Modal: การ์ดความรู้ & คำถามโบนัส -->
+    <div id="modal-knowledge" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title">💡 การ์ดความรู้ : สำรวจก่อนสร้าง</span>
+                <span id="knowledge-progress-tag" class="knowledge-badge" style="margin:0;">ปลดล็อกใหม่!</span>
+            </div>
+            <div id="knowledge-topic" class="knowledge-badge">หัวข้อ</div>
+            <div id="knowledge-text" class="knowledge-content">เนื้อหาความรู้</div>
+
+            <div id="quiz-section" style="display: none; border-top: 1.5px dashed #decff0; padding-top: 12px;">
+                <div style="font-weight: 700; color: #b85d19; margin-bottom: 6px;">
+                    🎯 คำถามชิงโบนัส (+300 คะแนน)
+                </div>
+                <div id="quiz-question" style="font-weight: 600; font-size: 15px; margin-bottom: 8px;"></div>
+                <div id="quiz-options" class="quiz-options"></div>
+                <div id="quiz-feedback" style="margin-top: 10px; font-weight: 700; font-size: 14px;"></div>
+            </div>
+
+            <div style="margin-top: 16px; text-align: right;">
+                <button id="btn-close-knowledge" class="btn btn-primary">เข้าใจแล้ว เล่นต่อ ▶</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: สมุดความรู้ (Codex) -->
+    <div id="modal-codex" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title">📖 สมุดความรู้ ม.5 บทที่ 1</span>
+                <button class="btn btn-glass btn-sm modal-close-btn">✕ ปิด</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                เคลียร์แถวในเกมเพื่อปลดล็อกการ์ดความรู้ให้ครบทั้ง <span id="codex-total-txt">15</span> ใบ!
+            </p>
+            <div id="codex-list" class="codex-grid"></div>
+        </div>
+    </div>
+
+    <!-- Modal: อันดับคะแนน (Leaderboard) -->
+    <div id="modal-leaderboard" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title">🏆 อันดับคะแนนสูงสุด (Top 10)</span>
+                <button class="btn btn-glass btn-sm modal-close-btn">✕ ปิด</button>
+            </div>
+            <div class="tab-row" id="lb-tabs">
+                <button class="tab-btn active" data-lb-mode="easy">🌸 ง่าย</button>
+                <button class="tab-btn" data-lb-mode="medium">🏮 ปานกลาง</button>
+                <button class="tab-btn" data-lb-mode="hard">🌕 ยาก</button>
+                <button class="tab-btn" data-lb-mode="expert">🔥 ยากมาก</button>
+            </div>
+            <div id="lb-list" class="rank-list"></div>
+        </div>
+    </div>
+
+    <!-- Modal: วิธีเล่นและปุ่มควบคุม -->
+    <div id="modal-howto" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title">❓ วิธีเล่น & การควบคุม</span>
+                <button class="btn btn-glass btn-sm modal-close-btn">✕ ปิด</button>
+            </div>
+            <div style="font-size: 14px; line-height: 1.6;">
+                <p>1. จัดเรียงบล็อกให้เต็มแถวแนวนอนเพื่อทำคะแนนและเคลียร์แถว</p>
+                <p>2. ทุกครั้งที่เคลียร์แถวได้ จะเปิด <strong>การ์ดความรู้</strong> เรื่อง "สำรวจก่อนสร้าง" พร้อมโอกาสตอบคำถามรับโบนัส!</p>
+                <p>3. พิมพ์คำอธิษฐานที่หน้าหลักเพื่อปล่อยกระทงลอยในแม่น้ำได้</p>
+
+                <table class="key-table">
+                    <tr><td><span class="kbd">A</span> หรือ <span class="kbd">⬅️</span></td><td>เลื่อนบล็อกไปทางซ้าย</td></tr>
+                    <tr><td><span class="kbd">D</span> หรือ <span class="kbd">➡️</span></td><td>เลื่อนบล็อกไปทางขวา</td></tr>
+                    <tr><td><span class="kbd">W</span> หรือ <span class="kbd">⬆️</span></td><td>หมุนบล็อก</td></tr>
+                    <tr><td><span class="kbd">S</span> หรือ <span class="kbd">⬇️</span></td><td>เลื่อนลงเร็ว (Soft Drop)</td></tr>
+                    <tr><td><span class="kbd">Spacebar</span></td><td>ปล่อยตกทันที (Hard Drop)</td></tr>
+                    <tr><td><span class="kbd">R</span></td><td>เก็บ / สลับบล็อก (Hold)</td></tr>
+                    <tr><td><span class="kbd">P</span></td><td>พักเกมชั่วคราว (Pause)</td></tr>
+                </table>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+                    * รองรับทั้งแป้นพิมพ์ภาษาไทย/อังกฤษ และปุ่มกดบนหน้าจอมือถือ
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: ยืนยันการกดปุ่ม Stop -->
+    <div id="modal-stop-confirm" class="modal-overlay">
+        <div class="modal-box" style="max-width: 400px; text-align: center;">
+            <h3 class="modal-title" style="margin-bottom: 10px;">⏹ ต้องการหยุดเกมใช่ไหม?</h3>
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 18px;">
+                หากหยุดเกมตอนนี้ รอบการเล่นปัจจุบันจะสิ้นสุดลงทันที
+            </p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="btn-cancel-stop" class="btn btn-glass">เล่นต่อ</button>
+                <button id="btn-confirm-stop" class="btn btn-danger">ยืนยันหยุดเกม</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: พักเกม (Pause) -->
+    <div id="modal-pause" class="modal-overlay">
+        <div class="modal-box" style="max-width: 380px; text-align: center;">
+            <h3 class="modal-title" style="margin-bottom: 10px;">⏸ พักเกมชั่วคราว</h3>
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 18px;">
+                พักสายตาชมจันทร์วันลอยกระทงสักครู่ แล้วกลับมาลุยต่อ!
+            </p>
+            <button id="btn-resume-game" class="btn btn-primary" style="width: 100%;">▶ เล่นต่อ</button>
+        </div>
+    </div>
+
+    <!-- Modal: จบเกม (บันทึกอันดับ + ฟีดแบ็กส่งครูผู้สร้าง) -->
+    <div id="modal-gameover" class="modal-overlay">
+        <div class="modal-box">
+            <div style="text-align: center; margin-bottom: 12px;">
+                <div style="font-size: 36px;">🪷✨</div>
+                <h2 class="modal-title">สรุปผลการเล่น</h2>
+                <div style="font-size: 26px; font-weight: 700; color: var(--accent-pink-hover); margin: 4px 0;">
+                    <span id="final-score">0</span> คะแนน
+                </div>
+                <div style="font-size: 13px; color: var(--text-muted);">
+                    โหมด: <span id="final-mode">ง่าย</span> • เคลียร์ได้ <span id="final-lines">0</span> แถว
+                </div>
+            </div>
+
+            <!-- ส่วนที่ 1: บันทึกชื่อเล่นลงตารางอันดับ -->
+            <div id="save-score-section" style="background: #f9f4ff; padding: 12px; border-radius: var(--radius-md); margin-bottom: 12px;">
+                <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px;">
+                    🏆 ใส่ชื่อเล่นเพื่อบันทึกอันดับคะแนน
+                </label>
+                <div style="display: flex; gap: 8px;">
+                    <input id="player-name-input" class="wish-input" type="text" maxlength="20" placeholder="ชื่อเล่นของคุณ...">
+                    <button id="btn-save-score" class="btn btn-gold btn-sm">บันทึก</button>
+                </div>
+                <div id="score-saved-msg" style="display: none; color: var(--success); font-size: 13px; font-weight: 700; margin-top: 6px;">
+                    ✅ บันทึกคะแนนลงตารางอันดับเรียบร้อยแล้ว!
+                </div>
+            </div>
+
+            <!-- ส่วนที่ 2: ให้ดาวและส่งฟีดแบ็กไปยัง Google Sheets -->
+            <div id="feedback-section" style="background: #fff8f2; padding: 12px; border-radius: var(--radius-md); border: 1.5px solid #ffe4cc;">
+                <div style="font-size: 13px; font-weight: 700; text-align: center;">
+                    ⭐ ให้คะแนนความพึงพอใจสื่อการเรียนรู้นี้
+                </div>
+                <div class="star-rating" id="star-rating">
+                    <button type="button" class="star-btn active" data-star="1">⭐</button>
+                    <button type="button" class="star-btn active" data-star="2">⭐</button>
+                    <button type="button" class="star-btn active" data-star="3">⭐</button>
+                    <button type="button" class="star-btn active" data-star="4">⭐</button>
+                    <button type="button" class="star-btn active" data-star="5">⭐</button>
+                </div>
+                <textarea id="feedback-comment" rows="2" maxlength="300" placeholder="ข้อเสนอแนะเพิ่มเติมถึงผู้สร้าง (ไม่บังคับ)..."
+                    style="width: 100%; border: 1.5px solid #e5d5c5; border-radius: 12px; padding: 8px 12px; font-size: 13px; resize: none; outline: none; margin-bottom: 8px;"></textarea>
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button id="btn-skip-feedback" class="btn btn-glass btn-sm">ข้าม</button>
+                    <button id="btn-send-feedback" class="btn btn-primary btn-sm">ส่งความคิดเห็น 💌</button>
+                </div>
+            </div>
+
+            <div id="feedback-thanks" style="display: none; text-align: center; padding: 12px; color: var(--success); font-weight: 700;">
+                🙏 ขอบคุณสำหรับความคิดเห็นของคุณ!
+            </div>
+
+            <div style="margin-top: 14px; display: flex; gap: 8px;">
+                <button id="btn-back-menu" class="btn btn-glass" style="flex: 1;">🏠 กลับหน้าเมนู</button>
+                <button id="btn-play-again" class="btn btn-primary" style="flex: 1;">🔄 เล่นอีกครั้ง</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================================
+         4. โค้ด JavaScript ทั้งหมดของเกม
+         ========================================================================== -->
+    <script>
+        /* ==========================================================================
+           ส่วนที่ 1: การตั้งค่าหลักที่ผู้สร้างสามารถแก้ไขได้
+           ========================================================================== */
+        
+        // ใส่ URL ของ Google Apps Script Web App ตรงนี้ได้เลยหากต้องการฝังถาวรในไฟล์สำหรับแจกนักเรียน
+        // (หรือจะกดปุ่ม ⚙️ บนหน้าเว็บเพื่อวาง URL ก็ได้เช่นกัน)
+        const DEFAULT_GAS_URL = "";
+
+        // ตัวเลือก B สำหรับเพลงประกอบ: หากมีไฟล์เพลงบรรเลงลอยกระทง (เช่น "loykrathong.mp3")
+        const MUSIC_FILE = "";
+
+        // ตัวจัดการลิงก์ Google Apps Script (รองรับทั้งค่าในโค้ด, พารามิเตอร์ ?gas= และใน localStorage)
+        const GASConfig = {
+            STORAGE_KEY: 'lk_tetris_gas_url',
+
+            getUrl() {
+                // 1. ตรวจสอบจาก URL Parameter เผื่อครูส่งลิงก์แบบ ?gas=https://... ให้นักเรียน
+                try {
+                    const params = new URLSearchParams(window.location.search);
+                    const paramUrl = params.get('gas');
+                    if (paramUrl && paramUrl.startsWith('https://script.google.com/')) {
+                        return paramUrl.trim();
+                    }
+                } catch (e) {}
+
+                // 2. ตรวจสอบจากค่าที่บันทึกผ่านปุ่ม ⚙️ ในหน้าเว็บ
+                try {
+                    const saved = localStorage.getItem(this.STORAGE_KEY);
+                    if (saved && saved.trim() !== "") return saved.trim();
+                } catch (e) {}
+
+                // 3. ใช้ค่าเริ่มต้นในโค้ด DEFAULT_GAS_URL
+                return (DEFAULT_GAS_URL || "").trim();
+            },
+
+            saveUrl(url) {
+                const clean = (url || "").trim();
+                try {
+                    if (clean) {
+                        localStorage.setItem(this.STORAGE_KEY, clean);
+                    } else {
+                        localStorage.removeItem(this.STORAGE_KEY);
+                    }
+                } catch (e) {}
+                this.updateStatusUI();
+            },
+
+            updateStatusUI() {
+                const url = this.getUrl();
+                const badge = document.getElementById('gas-status-badge');
+                const input = document.getElementById('gas-url-input');
+                const gearBtn = document.getElementById('btn-open-gas-settings');
+
+                if (input && document.activeElement !== input) {
+                    input.value = url;
+                }
+
+                if (url) {
+                    if (badge) {
+                        badge.className = 'status-pill connected';
+                        badge.textContent = '✅ เชื่อมต่อ Google Sheets แล้ว';
+                    }
+                    if (gearBtn) {
+                        gearBtn.style.borderColor = '#52b788';
+                        gearBtn.title = 'เชื่อมต่อ Google Sheets แล้ว (คลิกเพื่อแก้ไข)';
+                    }
+                } else {
+                    if (badge) {
+                        badge.className = 'status-pill disconnected';
+                        badge.textContent = '⚠️ ยังไม่ได้ตั้งค่า URL';
+                    }
+                    if (gearBtn) {
+                        gearBtn.style.borderColor = 'rgba(155, 126, 222, 0.3)';
+                        gearBtn.title = 'ตั้งค่าลิงก์ Google Sheets รับคอมเมนต์';
+                    }
+                }
+            }
+        };
+
+        /* ==========================================================================
+           ส่วนที่ 2: คลังเนื้อหาความรู้และคลังคำถาม (วิชาการออกแบบและเทคโนโลยี ม.5 บทที่ 1)
+           ========================================================================== */
+        const KNOWLEDGE_CARDS = [
+            {
+                id: "k1",
+                topic: "🎯 วัตถุประสงค์ : ความรู้กับการแก้ปัญหา",
+                content: "การสร้างสรรค์เทคโนโลยีหรือนวัตกรรม ต้องใช้ความรู้พื้นฐานรอบด้าน (เช่น วิทยาศาสตร์ คณิตศาสตร์) ประยุกต์ร่วมกับกระบวนการคิดเชิงออกแบบ (Design Thinking) เพื่อให้ได้แนวทางแก้ปัญหาที่เหมาะสม"
+            },
+            {
+                id: "k2",
+                topic: "🔍 การสืบค้นและสังเคราะห์สารสนเทศ",
+                content: "หากความรู้เดิมที่มีอยู่ไม่เพียงพอต่อการแก้ปัญหา เราต้องสืบค้นข้อมูลเพิ่มเติมจากสื่อสิ่งพิมพ์ สื่อออนไลน์ หรือสัมภาษณ์ผู้เชี่ยวชาญ แล้วนำมาวิเคราะห์และสังเคราะห์เป็นสารสนเทศที่พร้อมใช้งาน"
+            },
+            {
+                id: "k3",
+                topic: "🚪 กรณีที่ 1 : การออกแบบประตูกับหลักการยศาสตร์",
+                content: "การออกแบบประตูต้องคำนึงถึงสรีระและความสะดวกของผู้ใช้งาน (Ergonomics) โดยทั่วไปประตูห้องทำงานมาตรฐานจะมีความกว้างประมาณ 80 เซนติเมตร และสูงประมาณ 200 เซนติเมตร"
+            },
+            {
+                id: "k4",
+                topic: "🚪 กรณีที่ 1 : การเลือกใช้วัสดุทำประตู",
+                content: "ประตูห้องทำงานสามารถเลือกใช้วัสดุได้หลากหลาย เช่น ไม้ กระจก หรือพลาสติก แต่สำหรับ 'ประตูห้องน้ำ' ที่ต้องสัมผัสความชื้นตลอดเวลา ต้องเลือกใช้วัสดุที่ทนน้ำได้ดี เช่น พลาสติก PVC (Polyvinyl Chloride)"
+            },
+            {
+                id: "k5",
+                topic: "🚪 กรณีที่ 1 : กลไกการเคลื่อนที่ของบานประตู",
+                content: "รูปแบบของบานประตูมีทั้งบานเดี่ยว บานคู่ และบานเลื่อน ซึ่งต้องอาศัยความรู้เรื่องกลไกการเคลื่อนที่ เช่น การใช้บานพับสำหรับประตูเปิด-ปิด หรือการใช้ลูกล้อร่วมกับรางเลื่อนสำหรับประตูบานเลื่อน"
+            },
+            {
+                id: "k6",
+                topic: "🚀 กรณีที่ 2 : ความรู้ฟิสิกส์กับกระสวยอวกาศ",
+                content: "การส่งกระสวยอวกาศอาศัยความรู้ฟิสิกส์หลายด้าน ได้แก่ แรงโน้มถ่วง แรงดึงดูดของโลก แรงยก แรงต้านอากาศ สภาพแวดล้อมในอวกาศ และลักษณะของชั้นบรรยากาศโลก"
+            },
+            {
+                id: "k7",
+                topic: "🚀 กรณีที่ 2 : 3 ส่วนประกอบหลักของกระสวยอวกาศ",
+                content: "กระสวยอวกาศประกอบด้วย 3 ส่วนหลัก: (1) จรวดเชื้อเพลิงแข็ง (Solid Rocket Booster) ขับดันให้ทะยานขึ้น (2) ถังเชื้อเพลิงภายนอก (External Tank) ให้พลังงานพ้นแรงโน้มถ่วง (3) ยานขนส่งอวกาศ (Orbiter) บรรทุกและปล่อยดาวเทียม"
+            },
+            {
+                id: "k8",
+                topic: "🚀 กรณีที่ 2 : ลำดับการทำงานของกระสวยอวกาศ",
+                content: "ลำดับการทำงาน: ทะยานขึ้นด้วยจรวดเชื้อเพลิงแข็ง → สลัดจรวดออกเมื่อเชื้อเพลิงหมด → ใช้ถังเชื้อเพลิงภายนอกพ้นแรงโน้มถ่วงเข้าสู่วงโคจร → สลัดถังเชื้อเพลิง → ปล่อยดาวเทียม → ใช้ปีกสร้างแรงต้านและแรงยกเพื่อชะลอและร่อนลงสู่พื้นโลก"
+            },
+            {
+                id: "k9",
+                topic: "☀️ กรณีที่ 3 : ฟาร์มเซลล์สุริยะ (Solar Farm)",
+                content: "ฟาร์มเซลล์สุริยะเป็นเทคโนโลยีพลังงานสะอาดที่เปลี่ยนพลังงานแสงอาทิตย์ให้เป็นพลังงานไฟฟ้า ช่วยลดการพึ่งพาเชื้อเพลิงฟอสซิลและเป็นมิตรต่อสิ่งแวดล้อม"
+            },
+            {
+                id: "k10",
+                topic: "☀️ กรณีที่ 3 : ความรู้ทางไฟฟ้าในฟาร์มเซลล์สุริยะ",
+                content: "การออกแบบฟาร์มเซลล์สุริยะต้องใช้ความรู้เรื่องการแปลงพลังงาน การออกแบบวงจรไฟฟ้า การคำนวณกระแสไฟฟ้า ความต่างศักย์ ปริมาณไฟฟ้าที่ต้องการ ขนาดและจำนวนแผง ชนิดสายไฟ ระบบแบตเตอรี่ เครื่องควบคุมการชาร์จ และเครื่องแปลงไฟ (Inverter)"
+            },
+            {
+                id: "k11",
+                topic: "☀️ กรณีที่ 3 : กลไกระบบหมุนตามดวงอาทิตย์",
+                content: "ฟาร์มเซลล์สุริยะแบบหมุนตามดวงอาทิตย์ (Solar Tracking) ต้องใช้ความรู้ทางกลศาสตร์เรื่อง มอเตอร์ เฟือง และเพลา เพื่อปรับมุมของแผงเซลล์ให้ตั้งฉากกับแสงอาทิตย์ตลอดวัน ทำให้ผลิตไฟฟ้าได้สูงสุด"
+            },
+            {
+                id: "k12",
+                topic: "🏗️ กรณีที่ 4 : โครงการขนาดใหญ่กับรายงาน EIA",
+                content: "โครงการขนาดใหญ่ เช่น เขื่อน โรงกำจัดขยะ หรือโรงไฟฟ้า จำเป็นต้องศึกษาระบบนิเวศทั้งก่อนและหลังการก่อสร้าง และต้องจัดทำรายงานการประเมินผลกระทบสิ่งแวดล้อม หรือ EIA (Environment Impact Assessment)"
+            },
+            {
+                id: "k13",
+                topic: "🏗️ กรณีที่ 4 : กฎหมายและการทำประชาพิจารณ์",
+                content: "นอกจากผลกระทบสิ่งแวดล้อม โครงการขนาดใหญ่ต้องพิจารณากฎหมายที่เกี่ยวข้อง ผลกระทบต่อวิถีชีวิตชุมชน และจัดทำ 'ประชาพิจารณ์' เพื่อรับฟังความคิดเห็นของผู้มีส่วนได้ส่วนเสียทุกฝ่ายอย่างรอบด้าน"
+            },
+            {
+                id: "k14",
+                topic: "🛵 กรณีที่ 5 : นวัตกรรมการบริการและกระบวนการ",
+                content: "นวัตกรรมไม่ได้มีแค่สิ่งของ แต่รวมถึง 'วิธีการหรือกระบวนการใหม่' ที่ตอบสนองวิถีชีวิตเร่งรีบและปัญหาการจราจรในเมือง เช่น การส่งสินค้าด้วยโดรน การสั่งและจัดส่งผ่านแอปบนสมาร์ทโฟน และบริการ Drive-thru"
+            },
+            {
+                id: "k15",
+                topic: "📌 บทสรุป : สำรวจก่อนสร้าง สร้างอย่างมีความรู้",
+                content: "การสร้างเทคโนโลยีหรือนวัตกรรมเพื่อแก้ปัญหาอย่างยั่งยืน ต้องอาศัยความรู้พื้นฐานที่รอบด้านและเพียงพอ ร่วมกับการสืบค้นข้อมูลและการวิเคราะห์อย่างเป็นระบบก่อนลงมือสร้าง"
+            }
+        ];
+
+        const QUIZ_BANK = [
+            {
+                q: "หากความรู้เดิมที่มีไม่เพียงพอต่อการสร้างชิ้นงานแก้ปัญหา ขั้นตอนใดเหมาะสมที่สุด?",
+                options: ["เดาสุ่มและลองสร้างทันที", "สืบค้นจากสื่อหรือสัมภาษณ์ผู้เชี่ยวชาญแล้วนำมาวิเคราะห์", "เปลี่ยนไปทำเรื่องอื่นที่ไม่ต้องใช้ความรู้", "ลอกเลียนแบบผลงานผู้อื่นทั้งหมด"],
+                ans: 1
+            },
+            {
+                q: "กระบวนการคิดใดที่นำมาประยุกต์ร่วมกับความรู้พื้นฐานเพื่อสร้างนวัตกรรมแก้ปัญหา?",
+                options: ["Design Thinking (กระบวนการคิดเชิงออกแบบ)", "Random Guessing", "Reverse Engineering Only", "Trial Without Error"],
+                ans: 0
+            },
+            {
+                q: "ข้อใดคือเป้าหมายสำคัญของการวิเคราะห์และสังเคราะห์ข้อมูลที่สืบค้นมาได้?",
+                options: ["เพื่อทำให้รายงานมีความยาวมากขึ้น", "เพื่อเปลี่ยนข้อมูลดิบให้เป็นสารสนเทศที่นำไปใช้แก้ปัญหาได้จริง", "เพื่อเก็บไว้เป็นความลับคนเดียว", "เพื่อหลีกเลี่ยงการทดลองสร้าง"],
+                ans: 1
+            },
+            {
+                q: "ประตูห้องทำงานมาตรฐานควรมีขนาดความกว้างและความสูงประมาณเท่าใดตามหลัก Ergonomics?",
+                options: ["กว้าง 50 ซม. สูง 150 ซม.", "กว้าง 80 ซม. สูง 200 ซม.", "กว้าง 120 ซม. สูง 180 ซม.", "กว้าง 60 ซม. สูง 250 ซม."],
+                ans: 1
+            },
+            {
+                q: "เหตุใดจึงนิยมเลือกใช้พลาสติก PVC (Polyvinyl Chloride) มาทำเป็นประตูห้องน้ำ?",
+                options: ["เพราะโปร่งแสงมองทะลุได้", "เพราะมีราคาแพงที่สุด", "เพราะทนน้ำและความชื้นได้ดี ไม่ผุกร่อน", "เพราะนำไฟฟ้าได้ดี"],
+                ans: 2
+            },
+            {
+                q: "การออกแบบ 'ประตูบานเลื่อน' ต้องอาศัยความรู้เรื่องกลไกการเคลื่อนที่คู่ใด?",
+                options: ["ลูกล้อและรางเลื่อน", "สปริงและลูกสูบ", "เฟืองสะพานและสายพาน", "รอกเดี่ยวและคานงัด"],
+                ans: 0
+            },
+            {
+                q: "การคำนึงถึงขนาดร่างกายและความสะดวกสบายของผู้ใช้ในการออกแบบประตู เรียกว่าหลักการใด?",
+                options: ["Aerodynamics", "Ergonomics (การยศาสตร์)", "Thermodynamics", "Hydrostatics"],
+                ans: 1
+            },
+            {
+                q: "ส่วนประกอบใดของกระสวยอวกาศที่ทำหน้าที่ขับดันหลักในช่วงทะยานขึ้นจากฐานปล่อย?",
+                options: ["Orbiter (ยานขนส่งอวกาศ)", "Solid Rocket Booster (จรวดเชื้อเพลิงแข็ง)", "Solar Array", "Cargo Bay"],
+                ans: 1
+            },
+            {
+                q: "ส่วนใดของกระสวยอวกาศที่ทำหน้าที่บรรจุและปล่อยดาวเทียมเข้าสู่วงโคจร?",
+                options: ["External Tank", "Solid Rocket Booster", "Orbiter (ยานขนส่งอวกาศ)", "Launch Pad"],
+                ans: 2
+            },
+            {
+                q: "ส่วนใดทำหน้าที่ให้พลังงานเพื่อพากระสวยอวกาศพ้นแรงโน้มถ่วงโลกและเข้าสู่วงโคจร?",
+                options: ["External Tank (ถังเชื้อเพลิงภายนอก)", "ร่มชูชีพท้ายยาน", "ห้องนักบิน", "ล้อลงจอด"],
+                ans: 0
+            },
+            {
+                q: "ขณะที่ยานขนส่งอวกาศ (Orbiter) ร่อนกลับลงสู่พื้นโลก ปีกของยานช่วยสร้างแรงใดเพื่อชะลอความเร็ว?",
+                options: ["แรงแม่เหล็กและแรงโน้มถ่วง", "แรงต้านอากาศและแรงยก", "แรงลอยตัวและแรงตึงผิว", "แรงหนีศูนย์กลาง"],
+                ans: 1
+            },
+            {
+                q: "ลำดับการสลัดชิ้นส่วนของกระสวยอวกาศข้อใดถูกต้อง?",
+                options: ["สลัดถังเชื้อเพลิงภายนอกก่อน แล้วจึงสลัดจรวดเชื้อเพลิงแข็ง", "สลัดจรวดเชื้อเพลิงแข็งก่อน แล้วจึงสลัดถังเชื้อเพลิงภายนอก", "สลัดยาน Orbiter ก่อนเป็นอันดับแรก", "ไม่มีการสลัดชิ้นส่วนใด ๆ ออก"],
+                ans: 1
+            },
+            {
+                q: "อุปกรณ์ใดในฟาร์มเซลล์สุริยะทำหน้าที่แปลงไฟฟ้ากระแสตรง (DC) เป็นไฟฟ้ากระแสสลับ (AC)?",
+                options: ["Inverter (เครื่องแปลงไฟ)", "Charge Controller", "Solar Tracker", "Gearbox"],
+                ans: 0
+            },
+            {
+                q: "ฟาร์มเซลล์สุริยะแบบหมุนตามดวงอาทิตย์ ใช้กลไกใดในการปรับมุมของแผงโซลาร์เซลล์?",
+                options: ["มอเตอร์ เฟือง และเพลา", "กังหันไอน้ำและหม้อต้ม", "ลูกสูบไฮดรอลิกและวาล์วไอเสีย", "แม่เหล็กถาวรและขดลวดความร้อน"],
+                ans: 0
+            },
+            {
+                q: "เหตุใดฟาร์มเซลล์สุริยะแบบหมุนตามดวงอาทิตย์จึงต้องปรับมุมแผงให้ตั้งฉากกับแสงอาทิตย์?",
+                options: ["เพื่อหลบฝนและลมแรง", "เพื่อให้รับพลังงานแสงอาทิตย์และผลิตไฟฟ้าได้เต็มประสิทธิภาพสูงสุด", "เพื่อลดน้ำหนักของโครงสร้าง", "เพื่อไม่ให้แผงสะท้อนแสงเข้าตาเครื่องบิน"],
+                ans: 1
+            },
+            {
+                q: "ข้อใด 'ไม่ใช่' ความรู้ที่จำเป็นในการออกแบบระบบไฟฟ้าของฟาร์มเซลล์สุริยะ?",
+                options: ["การคำนวณกระแสไฟฟ้าและความต่างศักย์", "การเลือกชนิดสายไฟและระบบแบตเตอรี่", "การคำนวณขนาดและจำนวนแผงเซลล์", "การคำนวณแรงยกของปีกเครื่องบิน"],
+                ans: 3
+            },
+            {
+                q: "รายงาน EIA (Environment Impact Assessment) ที่ต้องจัดทำก่อนสร้างเขื่อนหรือโรงไฟฟ้า หมายถึงอะไร?",
+                options: ["รายงานประเมินผลกำไรทางธุรกิจ", "รายงานการประเมินผลกระทบสิ่งแวดล้อม", "รายงานสำรวจความนิยมของดารา", "รายงานตรวจสอบบัญชีประจำปี"],
+                ans: 1
+            },
+            {
+                q: "เหตุใดโครงการขนาดใหญ่จึงต้องจัดทำ 'ประชาพิจารณ์' ก่อนดำเนินการก่อสร้าง?",
+                options: ["เพื่อรับฟังความคิดเห็นของผู้มีส่วนได้ส่วนเสียทุกฝ่าย", "เพื่อโฆษณาขายหุ้นของโครงการ", "เพื่อคัดเลือกผู้รับเหมาก่อสร้าง", "เพื่อประกวดตั้งชื่อโครงการ"],
+                ans: 0
+            },
+            {
+                q: "ในการสร้างเขื่อนหรือโรงกำจัดขยะ ควรศึกษาระบบนิเวศในช่วงเวลาใด?",
+                options: ["ศึกษาเฉพาะหลังสร้างเสร็จแล้ว", "ศึกษาเฉพาะก่อนเริ่มก่อสร้างเท่านั้น", "ศึกษาทั้งก่อนและหลังการก่อสร้าง", "ไม่ต้องศึกษาหากมีงบประมาณเพียงพอ"],
+                ans: 2
+            },
+            {
+                q: "นอกจากสิ่งแวดล้อมและระบบนิเวศ โครงการขนาดใหญ่ต้องคำนึงถึงปัจจัยใดควบคู่กัน?",
+                options: ["กฎหมายและวิถีชีวิตของชุมชน", "สีของอาคารสำนักงาน", "ฤดูกาลท่องเที่ยวต่างประเทศ", "ราคาทองคำในตลาดโลก"],
+                ans: 0
+            },
+            {
+                q: "ข้อใดจัดเป็น 'นวัตกรรมการบริการและกระบวนการ' ที่ช่วยแก้ปัญหาวิถีชีวิตเร่งรีบในเมือง?",
+                options: ["การสั่งและจัดส่งอาหารผ่านแอปพลิเคชันบนสมาร์ทโฟน", "การขุดคลองส่งน้ำด้วยแรงงานคน", "การส่งจดหมายผ่านนกพิราบ", "การเดินทางด้วยเกวียน"],
+                ans: 0
+            },
+            {
+                q: "บริการ Drive-thru และการส่งสินค้าด้วยโดรน มีจุดมุ่งหมายหลักเพื่อตอบสนองปัญหาใด?",
+                options: ["ความเร่งรีบและปัญหาการจราจรติดขัดในเมือง", "ปัญหาการขาดแคลนน้ำดื่มในชนบท", "ปัญหาดินถล่มบนภูเขา", "ปัญหาขยะล้นมหาสมุทร"],
+                ans: 0
+            },
+            {
+                q: "นวัตกรรมในกรณีที่ 5 แสดงให้เห็นว่านวัตกรรมไม่จำเป็นต้องเป็นสิ่งประดิษฐ์ที่จับต้องได้เสมอไป แต่อาจเป็นสิ่งใดได้?",
+                options: ["วิธีการหรือกระบวนการให้บริการรูปแบบใหม่", "ความเชื่อและโชคลางโบราณ", "กฎระเบียบที่ยุ่งยากซับซ้อนขึ้น", "การเพิ่มขั้นตอนการทำงานให้ช้าลง"],
+                ans: 0
+            },
+            {
+                q: "ข้อใดสรุปแนวคิด 'สำรวจก่อนสร้าง (สร้างอย่างมีความรู้)' ได้ถูกต้องที่สุด?",
+                options: ["ใช้ความรู้พื้นฐานรอบด้าน สืบค้นและวิเคราะห์อย่างเป็นระบบก่อนลงมือสร้าง", "รีบสร้างต้นแบบให้เร็วที่สุดโดยไม่ต้องหาข้อมูล", "ใช้ความรู้เพียงวิชาเดียวก็เพียงพอต่อทุกนวัตกรรม", "เน้นความสวยงามภายนอกโดยไม่สนใจการใช้งานจริง"],
+                ans: 0
+            },
+            {
+                q: "หากต้องการออกแบบระบบรดน้ำต้นไม้อัตโนมัติ นักเรียนควรสำรวจความรู้เรื่องใดบ้าง?",
+                options: ["ความชื้นที่พืชต้องการ วงจรเซนเซอร์ และระบบปั๊มน้ำ", "ประวัติศาสตร์ยุคสุโขทัย", "กฎกติกาการแข่งขันฟุตบอล", "การแต่งกลอนสุภาพ"],
+                ans: 0
+            },
+            {
+                q: "ประโยชน์ของการมีพื้นฐานความรู้ที่เพียงพอก่อนเริ่มสร้างนวัตกรรมคือข้อใด?",
+                options: ["ช่วยลดความผิดพลาด ประหยัดทรัพยากร และแก้ปัญหาได้ตรงจุด", "ทำให้ไม่ต้องทดสอบชิ้นงานเลย", "ทำให้ชิ้นงานมีราคาขายแพงโดยอัตโนมัติ", "ไม่ต้องทำงานร่วมกับผู้อื่น"],
+                ans: 0
+            }
+        ];
+
+        /* ==========================================================================
+           ส่วนที่ 3: ระบบเสียง Web Audio API
+           ========================================================================== */
+        const SoundEngine = {
+            ctx: null,
+            musicEnabled: true,
+            sfxEnabled: true,
+            musicVolume: 0.4,
+            isMusicPlaying: false,
+            musicTimer: null,
+            noteStep: 0,
+            audioElement: null,
+            usingExternalFile: false,
+
+            init() {
+                try {
+                    const saved = JSON.parse(localStorage.getItem('lk_tetris_audio') || '{}');
+                    if (typeof saved.musicEnabled === 'boolean') this.musicEnabled = saved.musicEnabled;
+                    if (typeof saved.sfxEnabled === 'boolean') this.sfxEnabled = saved.sfxEnabled;
+                    if (typeof saved.musicVolume === 'number') this.musicVolume = saved.musicVolume;
+                } catch (e) {}
+
+                document.getElementById('music-volume').value = this.musicVolume;
+                this.updateAudioUI();
+
+                if (MUSIC_FILE && MUSIC_FILE.trim() !== "") {
+                    this.audioElement = new Audio(MUSIC_FILE.trim());
+                    this.audioElement.loop = true;
+                    this.audioElement.volume = this.musicVolume;
+                    this.audioElement.addEventListener('canplaythrough', () => {
+                        this.usingExternalFile = true;
+                    });
+                    this.audioElement.addEventListener('error', () => {
+                        this.usingExternalFile = false;
+                    });
+                }
+            },
+
+            savePrefs() {
+                try {
+                    localStorage.setItem('lk_tetris_audio', JSON.stringify({
+                        musicEnabled: this.musicEnabled,
+                        sfxEnabled: this.sfxEnabled,
+                        musicVolume: this.musicVolume
+                    }));
+                } catch (e) {}
+            },
+
+            ensureContext() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            },
+
+            startMusic() {
+                if (!this.musicEnabled || this.isMusicPlaying) return;
+                this.ensureContext();
+                this.isMusicPlaying = true;
+
+                if (this.usingExternalFile && this.audioElement) {
+                    this.audioElement.volume = this.musicVolume;
+                    this.audioElement.play().catch(() => {
+                        this.usingExternalFile = false;
+                        this.startSynthLoop();
+                    });
+                } else {
+                    this.startSynthLoop();
+                }
+            },
+
+            stopMusic() {
+                this.isMusicPlaying = false;
+                if (this.musicTimer) {
+                    clearInterval(this.musicTimer);
+                    this.musicTimer = null;
+                }
+                if (this.audioElement) {
+                    this.audioElement.pause();
+                }
+            },
+
+            startSynthLoop() {
+                if (this.musicTimer) clearInterval(this.musicTimer);
+
+                const N = {
+                    C4: 261.63, D4: 293.66, E4: 329.63, G4: 392.00, A4: 440.00,
+                    C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880.00,
+                    C3: 130.81, G3: 196.00, A3: 220.00, _: 0
+                };
+
+                const melody = [
+                    N.G4, N.A4, N.C5, N.A4,  N.G4, N.E4, N.G4, N._,
+                    N.A4, N.C5, N.D5, N.E5,  N.D5, N.C5, N.A4, N._,
+                    N.E5, N.D5, N.C5, N.A4,  N.G4, N.A4, N.C5, N._,
+                    N.D5, N.C5, N.A4, N.G4,  N.E4, N.D4, N.C4, N._
+                ];
+
+                const bass = [
+                    N.C3, N._, N.G3, N._,  N.C3, N._, N.G3, N._,
+                    N.A3, N._, N.E4, N._,  N.A3, N._, N.G3, N._,
+                    N.C3, N._, N.G3, N._,  N.A3, N._, N.E4, N._,
+                    N.G3, N._, N.D4, N._,  N.C3, N._, N.G3, N._
+                ];
+
+                const playStep = () => {
+                    if (!this.musicEnabled || !this.isMusicPlaying || !this.ctx) return;
+                    const idx = this.noteStep % melody.length;
+                    const mFreq = melody[idx];
+                    const bFreq = bass[idx];
+                    const now = this.ctx.currentTime;
+
+                    if (mFreq > 0 && this.musicVolume > 0) {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(mFreq, now);
+
+                        const peak = this.musicVolume * 0.22;
+                        gain.gain.setValueAtTime(0.001, now);
+                        gain.gain.linearRampToValueAtTime(peak, now + 0.02);
+                        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.42);
+
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.45);
+                    }
+
+                    if (bFreq > 0 && this.musicVolume > 0) {
+                        const oscB = this.ctx.createOscillator();
+                        const gainB = this.ctx.createGain();
+                        oscB.type = 'sine';
+                        oscB.frequency.setValueAtTime(bFreq, now);
+
+                        const peakB = this.musicVolume * 0.14;
+                        gainB.gain.setValueAtTime(0.001, now);
+                        gainB.gain.linearRampToValueAtTime(peakB, now + 0.03);
+                        gainB.gain.exponentialRampToValueAtTime(0.0008, now + 0.5);
+
+                        oscB.connect(gainB);
+                        gainB.connect(this.ctx.destination);
+                        oscB.start(now);
+                        oscB.stop(now + 0.52);
+                    }
+
+                    this.noteStep++;
+                };
+
+                playStep();
+                this.musicTimer = setInterval(playStep, 340);
+            },
+
+            playPop(type = 'click') {
+                if (!this.sfxEnabled) return;
+                this.ensureContext();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+
+                const makeTone = (fStart, fEnd, dur, vol = 0.18, delay = 0, wave = 'sine') => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = wave;
+                    osc.frequency.setValueAtTime(fStart, now + delay);
+                    osc.frequency.exponentialRampToValueAtTime(fEnd, now + delay + dur);
+
+                    gain.gain.setValueAtTime(0.001, now + delay);
+                    gain.gain.linearRampToValueAtTime(vol, now + delay + 0.01);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + delay + dur);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + delay);
+                    osc.stop(now + delay + dur + 0.02);
+                };
+
+                switch (type) {
+                    case 'click':
+                        makeTone(360, 680, 0.075, 0.16);
+                        break;
+                    case 'move':
+                        makeTone(280, 440, 0.055, 0.10);
+                        break;
+                    case 'hold':
+                        makeTone(340, 520, 0.06, 0.14, 0);
+                        makeTone(460, 680, 0.07, 0.14, 0.05);
+                        break;
+                    case 'drop':
+                        makeTone(220, 130, 0.09, 0.18);
+                        break;
+                    case 'clear':
+                        makeTone(440, 660, 0.09, 0.18, 0);
+                        makeTone(554, 830, 0.09, 0.18, 0.07);
+                        makeTone(659, 987, 0.12, 0.20, 0.14);
+                        break;
+                    case 'correct':
+                        makeTone(523, 784, 0.10, 0.20, 0);
+                        makeTone(659, 1046, 0.16, 0.22, 0.09);
+                        break;
+                    case 'wrong':
+                        makeTone(320, 210, 0.14, 0.16, 0);
+                        makeTone(250, 170, 0.16, 0.16, 0.11);
+                        break;
+                    case 'krathong':
+                        makeTone(480, 720, 0.09, 0.16, 0);
+                        makeTone(600, 900, 0.09, 0.16, 0.07);
+                        makeTone(760, 1140, 0.14, 0.18, 0.14);
+                        break;
+                    case 'gameover':
+                        makeTone(440, 330, 0.14, 0.16, 0);
+                        makeTone(392, 293, 0.14, 0.16, 0.14);
+                        makeTone(349, 220, 0.24, 0.18, 0.28);
+                        break;
+                }
+            },
+
+            updateAudioUI() {
+                document.getElementById('btn-toggle-music').textContent = this.musicEnabled ? '🎵' : '🔇';
+                document.getElementById('btn-toggle-sfx').textContent = this.sfxEnabled ? '🔊' : '🔈';
+            }
+        };
+
+        /* ==========================================================================
+           ส่วนที่ 4: ฉากหลังลอยกระทง + ระบบกระทงอธิษฐาน
+           ========================================================================== */
+        const SceneryManager = {
+            wishes: [],
+            activeKrathongs: [],
+            animFrame: null,
+
+            init() {
+                this.generateStarsAndLanterns();
+                this.loadWishes();
+                this.renderKrathongs();
+                this.animateRiver();
+            },
+
+            generateStarsAndLanterns() {
+                const starsLayer = document.getElementById('stars-layer');
+                for (let i = 0; i < 22; i++) {
+                    const star = document.createElement('div');
+                    star.className = 'star';
+                    const size = (Math.random() * 2.5 + 1.5).toFixed(1);
+                    star.style.width = size + 'px';
+                    star.style.height = size + 'px';
+                    star.style.top = (Math.random() * 48) + '%';
+                    star.style.left = (Math.random() * 96) + '%';
+                    star.style.animationDelay = (Math.random() * 3) + 's';
+                    starsLayer.appendChild(star);
+                }
+
+                const lanternsLayer = document.getElementById('lanterns-layer');
+                const lanternColors = ['#ffbe76', '#ff9ff3', '#feca57', '#ff7979'];
+                for (let i = 0; i < 8; i++) {
+                    const l = document.createElement('div');
+                    l.className = 'lantern';
+                    l.style.left = (8 + Math.random() * 84) + '%';
+                    l.style.background = lanternColors[i % lanternColors.length];
+                    l.style.animationDuration = (18 + Math.random() * 14) + 's';
+                    l.style.animationDelay = (-Math.random() * 20) + 's';
+                    lanternsLayer.appendChild(l);
+                }
+            },
+
+            loadWishes() {
+                try {
+                    const raw = localStorage.getItem('lk_tetris_wishes');
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (Array.isArray(parsed)) this.wishes = parsed;
+                    }
+                } catch (e) {
+                    this.wishes = [];
+                }
+
+                if (this.wishes.length === 0) {
+                    this.wishes = [
+                        { text: "ขอให้เรียนเก่ง ๆ สอบผ่านทุกวิชา 🎓", color: 0 },
+                        { text: "ขอให้มีความสุข สุขภาพแข็งแรง 🪷", color: 1 },
+                        { text: "สร้างนวัตกรรมดี ๆ เพื่อสังคม ✨", color: 2 }
+                    ];
+                }
+            },
+
+            saveWishes() {
+                try {
+                    localStorage.setItem('lk_tetris_wishes', JSON.stringify(this.wishes));
+                } catch (e) {}
+            },
+
+            addWish(text) {
+                const clean = text.trim().slice(0, 60);
+                if (!clean) return false;
+
+                const newWish = {
+                    text: clean,
+                    color: Math.floor(Math.random() * 4),
+                    createdAt: Date.now()
+                };
+
+                this.wishes.push(newWish);
+                this.saveWishes();
+                this.renderKrathongs(true);
+                return true;
+            },
+
+            createKrathongSVG(colorIndex) {
+                const palettes = [
+                    { petal: '#f8a5c2', inner: '#f78fb3', base: '#a3cb38' },
+                    { petal: '#cf6a87', inner: '#f3a683', base: '#78e08f' },
+                    { petal: '#d6a2e8', inner: '#f8efba', base: '#82ccdd' },
+                    { petal: '#f7d794', inner: '#f5cd79', base: '#b8e994' }
+                ];
+                const p = palettes[colorIndex % palettes.length];
+
+                const svgNS = "http://www.w3.org/2000/svg";
+                const svg = document.createElementNS(svgNS, "svg");
+                svg.setAttribute("width", "44");
+                svg.setAttribute("height", "34");
+                svg.setAttribute("viewBox", "0 0 44 34");
+
+                const base = document.createElementNS(svgNS, "path");
+                base.setAttribute("d", "M6,23 Q22,31 38,23 L35,28 Q22,33 9,28 Z");
+                base.setAttribute("fill", p.base);
+                svg.appendChild(base);
+
+                const petal1 = document.createElementNS(svgNS, "path");
+                petal1.setAttribute("d", "M8,23 Q12,13 17,22 Q22,11 27,22 Q32,13 36,23 Z");
+                petal1.setAttribute("fill", p.petal);
+                svg.appendChild(petal1);
+
+                const petal2 = document.createElementNS(svgNS, "path");
+                petal2.setAttribute("d", "M13,23 Q17,15 22,22 Q27,15 31,23 Z");
+                petal2.setAttribute("fill", p.inner);
+                svg.appendChild(petal2);
+
+                const candle = document.createElementNS(svgNS, "rect");
+                candle.setAttribute("x", "21");
+                candle.setAttribute("y", "11");
+                candle.setAttribute("width", "2.4");
+                candle.setAttribute("height", "8");
+                candle.setAttribute("rx", "1");
+                candle.setAttribute("fill", "#fff3b0");
+                svg.appendChild(candle);
+
+                const flame = document.createElementNS(svgNS, "ellipse");
+                flame.setAttribute("cx", "22.2");
+                flame.setAttribute("cy", "8.5");
+                flame.setAttribute("rx", "2.2");
+                flame.setAttribute("ry", "3.4");
+                flame.setAttribute("fill", "#ff9f1c");
+                flame.setAttribute("class", "candle-flame");
+                svg.appendChild(flame);
+
+                return svg;
+            },
+
+            renderKrathongs(justAdded = false) {
+                const container = document.getElementById('krathong-river-layer');
+                container.innerHTML = '';
+                this.activeKrathongs = [];
+
+                const recent = this.wishes.slice(-50);
+                const screenW = window.innerWidth || 1000;
+
+                recent.forEach((item, index) => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'floating-krathong';
+
+                    const tag = document.createElement('div');
+                    tag.className = 'wish-tag';
+                    tag.textContent = item.text;
+
+                    const svg = this.createKrathongSVG(item.color || 0);
+
+                    wrapper.appendChild(tag);
+                    wrapper.appendChild(svg);
+                    container.appendChild(wrapper);
+
+                    const topPercent = 18 + ((index * 17) % 56);
+                    wrapper.style.top = topPercent + '%';
+
+                    const isNewest = justAdded && index === recent.length - 1;
+                    const startX = isNewest ? 30 : Math.random() * screenW;
+                    const speed = 0.25 + (index % 5) * 0.08;
+
+                    this.activeKrathongs.push({
+                        el: wrapper,
+                        x: startX,
+                        speed: speed
+                    });
+                });
+            },
+
+            animateRiver() {
+                const step = () => {
+                    const maxW = window.innerWidth + 160;
+                    for (let i = 0; i < this.activeKrathongs.length; i++) {
+                        const k = this.activeKrathongs[i];
+                        k.x += k.speed;
+                        if (k.x > maxW) {
+                            k.x = -160;
+                        }
+                        k.el.style.transform = `translateX(${k.x}px)`;
+                    }
+                    this.animFrame = requestAnimationFrame(step);
+                };
+                if (this.animFrame) cancelAnimationFrame(this.animFrame);
+                this.animFrame = requestAnimationFrame(step);
+            }
+        };
+
+        /* ==========================================================================
+           ส่วนที่ 5: ระบบสมุดความรู้และอันดับคะแนน (localStorage)
+           ========================================================================== */
+        const StorageManager = {
+            unlockedIds: new Set(),
+
+            init() {
+                try {
+                    const raw = localStorage.getItem('lk_tetris_codex');
+                    if (raw) {
+                        const arr = JSON.parse(raw);
+                        if (Array.isArray(arr)) this.unlockedIds = new Set(arr);
+                    }
+                } catch (e) {}
+                this.updateCodexBadge();
+            },
+
+            unlockCard(id) {
+                const isNew = !this.unlockedIds.has(id);
+                this.unlockedIds.add(id);
+                try {
+                    localStorage.setItem('lk_tetris_codex', JSON.stringify([...this.unlockedIds]));
+                } catch (e) {}
+                this.updateCodexBadge();
+                return isNew;
+            },
+
+            updateCodexBadge() {
+                const badge = document.getElementById('codex-count-badge');
+                const totalTxt = document.getElementById('codex-total-txt');
+                if (badge) badge.textContent = `${this.unlockedIds.size}/${KNOWLEDGE_CARDS.length}`;
+                if (totalTxt) totalTxt.textContent = KNOWLEDGE_CARDS.length;
+            },
+
+            getLeaderboard(mode) {
+                try {
+                    const all = JSON.parse(localStorage.getItem('lk_tetris_leaderboard') || '{}');
+                    return Array.isArray(all[mode]) ? all[mode] : [];
+                } catch (e) {
+                    return [];
+                }
+            },
+
+            saveScore(mode, name, score, lines) {
+                const cleanName = (name || 'ผู้เล่นนิรนาม').trim().slice(0, 20) || 'ผู้เล่นนิรนาม';
+                try {
+                    const all = JSON.parse(localStorage.getItem('lk_tetris_leaderboard') || '{}');
+                    if (!Array.isArray(all[mode])) all[mode] = [];
+                    all[mode].push({
+                        name: cleanName,
+                        score: score,
+                        lines: lines,
+                        date: new Date().toLocaleDateString('th-TH')
+                    });
+                    all[mode].sort((a, b) => b.score - a.score);
+                    all[mode] = all[mode].slice(0, 10);
+                    localStorage.setItem('lk_tetris_leaderboard', JSON.stringify(all));
+                } catch (e) {}
+            }
+        };
+
+        /* ==========================================================================
+           ส่วนที่ 6: เอนจินเกม Tetris ฉบับสมบูรณ์
+           ========================================================================== */
+        const COLS = 10;
+        const ROWS = 20;
+
+        const TETROMINOES = {
+            I: {
+                color: '#74c0fc',
+                matrix: [
+                    [0, 0, 0, 0],
+                    [1, 1, 1, 1],
+                    [0, 0, 0, 0],
+                    [0, 0, 0, 0]
+                ]
+            },
+            J: {
+                color: '#91a7ff',
+                matrix: [
+                    [1, 0, 0],
+                    [1, 1, 1],
+                    [0, 0, 0]
+                ]
+            },
+            L: {
+                color: '#ffc078',
+                matrix: [
+                    [0, 0, 1],
+                    [1, 1, 1],
+                    [0, 0, 0]
+                ]
+            },
+            O: {
+                color: '#ffe066',
+                matrix: [
+                    [1, 1],
+                    [1, 1]
+                ]
+            },
+            S: {
+                color: '#8ce99a',
+                matrix: [
+                    [0, 1, 1],
+                    [1, 1, 0],
+                    [0, 0, 0]
+                ]
+            },
+            T: {
+                color: '#d0bfff',
+                matrix: [
+                    [0, 1, 0],
+                    [1, 1, 1],
+                    [0, 0, 0]
+                ]
+            },
+            Z: {
+                color: '#faa2c1',
+                matrix: [
+                    [1, 1, 0],
+                    [0, 1, 1],
+                    [0, 0, 0]
+                ]
+            }
+        };
+
+        const DIFFICULTY_CONFIG = {
+            easy:   { label: '🌸 ง่าย',      baseInterval: 850, speedStep: 35, minInterval: 220, ghost: true },
+            medium: { label: '🏮 ปานกลาง',  baseInterval: 550, speedStep: 45, minInterval: 150, ghost: true },
+            hard:   { label: '🌕 ยาก',       baseInterval: 340, speedStep: 40, minInterval: 100, ghost: false },
+            expert: { label: '🔥 ยากมาก',   baseInterval: 210, speedStep: 35, minInterval: 65,  ghost: false }
+        };
+
+        const TetrisGame = {
+            canvas: null,
+            ctx: null,
+            nextCanvas: null,
+            nextCtx: null,
+            holdCanvas: null,
+            holdCtx: null,
+            blockSize: 28,
+
+            board: [],
+            mode: 'easy',
+            score: 0,
+            lines: 0,
+            level: 1,
+            linesSinceLastCard: 0,
+            cardShownCount: 0,
+            nextKnowledgeIndex: 0,
+
+            bag: [],
+            currentPiece: null,
+            nextPieceType: null,
+            holdPieceType: null,
+            canHold: true,
+
+            isRunning: false,
+            isPaused: false,
+            isModalPaused: false,
+            lastDropTime: 0,
+            animId: null,
+
+            init() {
+                this.canvas = document.getElementById('tetris-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.nextCanvas = document.getElementById('next-canvas');
+                this.nextCtx = this.nextCanvas.getContext('2d');
+                this.holdCanvas = document.getElementById('hold-canvas');
+                this.holdCtx = this.holdCanvas.getContext('2d');
+
+                window.addEventListener('resize', () => this.resizeCanvas());
+            },
+
+            resizeCanvas() {
+                const container = document.getElementById('board-container');
+                if (!container || document.getElementById('game-screen').style.display === 'none') return;
+
+                const availH = container.clientHeight - 16;
+                const availW = window.innerWidth - 210;
+                const sizeByH = Math.floor(availH / ROWS);
+                const sizeByW = Math.floor(availW / COLS);
+                this.blockSize = Math.max(16, Math.min(sizeByH, sizeByW, 34));
+
+                this.canvas.width = COLS * this.blockSize;
+                this.canvas.height = ROWS * this.blockSize;
+                this.draw();
+            },
+
+            createEmptyBoard() {
+                return Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+            },
+
+            drawFromBag() {
+                if (this.bag.length === 0) {
+                    this.bag = Object.keys(TETROMINOES);
+                    for (let i = this.bag.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [this.bag[i], this.bag[j]] = [this.bag[j], this.bag[i]];
+                    }
+                }
+                return this.bag.pop();
+            },
+
+            spawnPiece(typeOverride = null) {
+                const type = typeOverride || this.nextPieceType || this.drawFromBag();
+                if (!typeOverride) {
+                    this.nextPieceType = this.drawFromBag();
+                }
+
+                const shape = TETROMINOES[type];
+                const matrix = shape.matrix.map(row => [...row]);
+
+                this.currentPiece = {
+                    type: type,
+                    color: shape.color,
+                    matrix: matrix,
+                    x: Math.floor(COLS / 2) - Math.ceil(matrix[0].length / 2),
+                    y: 0
+                };
+
+                this.canHold = true;
+                this.drawMiniPiece(this.nextCtx, this.nextCanvas, this.nextPieceType);
+                this.drawMiniPiece(this.holdCtx, this.holdCanvas, this.holdPieceType);
+
+                if (this.collides(this.currentPiece.matrix, this.currentPiece.x, this.currentPiece.y)) {
+                    this.endGame(false);
+                }
+            },
+
+            start(selectedMode) {
+                this.mode = selectedMode;
+                this.board = this.createEmptyBoard();
+                this.score = 0;
+                this.lines = 0;
+                this.level = 1;
+                this.linesSinceLastCard = 0;
+                this.cardShownCount = 0;
+                this.bag = [];
+                this.holdPieceType = null;
+                this.nextPieceType = this.drawFromBag();
+
+                this.isRunning = true;
+                this.isPaused = false;
+                this.isModalPaused = false;
+
+                document.getElementById('menu-screen').style.display = 'none';
+                document.getElementById('game-screen').style.display = 'flex';
+                document.getElementById('stat-mode').textContent = DIFFICULTY_CONFIG[this.mode].label;
+
+                this.updateStatsUI();
+                this.resizeCanvas();
+                this.spawnPiece();
+
+                this.lastDropTime = performance.now();
+                if (this.animId) cancelAnimationFrame(this.animId);
+                this.loop(this.lastDropTime);
+            },
+
+            getDropInterval() {
+                const cfg = DIFFICULTY_CONFIG[this.mode];
+                const interval = cfg.baseInterval - (this.level - 1) * cfg.speedStep;
+                return Math.max(cfg.minInterval, interval);
+            },
+
+            loop(now) {
+                if (!this.isRunning) return;
+
+                if (!this.isPaused && !this.isModalPaused) {
+                    if (now - this.lastDropTime >= this.getDropInterval()) {
+                        this.moveDown(false);
+                        this.lastDropTime = now;
+                    }
+                    this.draw();
+                }
+
+                this.animId = requestAnimationFrame((t) => this.loop(t));
+            },
+
+            collides(matrix, offsetX, offsetY) {
+                for (let r = 0; r < matrix.length; r++) {
+                    for (let c = 0; c < matrix[r].length; c++) {
+                        if (!matrix[r][c]) continue;
+                        const newX = offsetX + c;
+                        const newY = offsetY + r;
+                        if (newX < 0 || newX >= COLS || newY >= ROWS) return true;
+                        if (newY >= 0 && this.board[newY][newX] !== null) return true;
+                    }
+                }
+                return false;
+            },
+
+            moveLeft() {
+                if (!this.canControl()) return;
+                if (!this.collides(this.currentPiece.matrix, this.currentPiece.x - 1, this.currentPiece.y)) {
+                    this.currentPiece.x--;
+                    SoundEngine.playPop('move');
+                    this.draw();
+                }
+            },
+
+            moveRight() {
+                if (!this.canControl()) return;
+                if (!this.collides(this.currentPiece.matrix, this.currentPiece.x + 1, this.currentPiece.y)) {
+                    this.currentPiece.x++;
+                    SoundEngine.playPop('move');
+                    this.draw();
+                }
+            },
+
+            moveDown(isManual = true) {
+                if (!this.canControl()) return;
+                if (!this.collides(this.currentPiece.matrix, this.currentPiece.x, this.currentPiece.y + 1)) {
+                    this.currentPiece.y++;
+                    if (isManual) {
+                        SoundEngine.playPop('move');
+                    }
+                    this.draw();
+                } else {
+                    this.lockPiece();
+                }
+            },
+
+            hardDrop() {
+                if (!this.canControl()) return;
+                while (!this.collides(this.currentPiece.matrix, this.currentPiece.x, this.currentPiece.y + 1)) {
+                    this.currentPiece.y++;
+                }
+                this.lockPiece();
+            },
+
+            rotate() {
+                if (!this.canControl()) return;
+                const m = this.currentPiece.matrix;
+                const N = m.length;
+                const rotated = Array.from({ length: N }, (_, r) =>
+                    Array.from({ length: N }, (_, c) => m[N - 1 - c][r])
+                );
+
+                const kicks = [0, -1, 1, -2, 2];
+                for (let k of kicks) {
+                    if (!this.collides(rotated, this.currentPiece.x + k, this.currentPiece.y)) {
+                        this.currentPiece.matrix = rotated;
+                        this.currentPiece.x += k;
+                        SoundEngine.playPop('move');
+                        this.draw();
+                        return;
+                    }
+                }
+            },
+
+            hold() {
+                if (!this.canControl() || !this.canHold) return;
+                SoundEngine.playPop('hold');
+
+                const currentType = this.currentPiece.type;
+                if (this.holdPieceType === null) {
+                    this.holdPieceType = currentType;
+                    this.spawnPiece();
+                } else {
+                    const swapType = this.holdPieceType;
+                    this.holdPieceType = currentType;
+                    this.spawnPiece(swapType);
+                }
+                this.canHold = false;
+                this.drawMiniPiece(this.holdCtx, this.holdCanvas, this.holdPieceType);
+                this.draw();
+            },
+
+            lockPiece() {
+                const { matrix, x, y, color } = this.currentPiece;
+                for (let r = 0; r < matrix.length; r++) {
+                    for (let c = 0; c < matrix[r].length; c++) {
+                        if (matrix[r][c]) {
+                            const by = y + r;
+                            const bx = x + c;
+                            if (by >= 0 && by < ROWS && bx >= 0 && bx < COLS) {
+                                this.board[by][bx] = color;
+                            }
+                        }
+                    }
+                }
+
+                SoundEngine.playPop('drop');
+                this.clearLines();
+                if (this.isRunning) {
+                    this.spawnPiece();
+                }
+            },
+
+            clearLines() {
+                let cleared = 0;
+                for (let r = ROWS - 1; r >= 0; r--) {
+                    if (this.board[r].every(cell => cell !== null)) {
+                        this.board.splice(r, 1);
+                        this.board.unshift(Array(COLS).fill(null));
+                        cleared++;
+                        r++;
+                    }
+                }
+
+                if (cleared > 0) {
+                    const lineScores = [0, 100, 300, 500, 800];
+                    this.score += (lineScores[cleared] || 800) * this.level;
+                    this.lines += cleared;
+                    this.level = Math.floor(this.lines / 5) + 1;
+                    this.linesSinceLastCard += cleared;
+
+                    SoundEngine.playPop('clear');
+                    this.updateStatsUI();
+
+                    if (this.linesSinceLastCard >= 1) {
+                        this.linesSinceLastCard = 0;
+                        this.triggerKnowledgeCard();
+                    }
+                }
+            },
+
+            triggerKnowledgeCard() {
+                this.isModalPaused = true;
+
+                let card = KNOWLEDGE_CARDS.find(c => !StorageManager.unlockedIds.has(c.id));
+                if (!card) {
+                    card = KNOWLEDGE_CARDS[this.nextKnowledgeIndex % KNOWLEDGE_CARDS.length];
+                    this.nextKnowledgeIndex++;
+                }
+
+                const isNew = StorageManager.unlockCard(card.id);
+                this.cardShownCount++;
+
+                const includeQuiz = (this.cardShownCount % 2 === 1);
+                UIController.showKnowledgeModal(card, isNew, includeQuiz);
+            },
+
+            canControl() {
+                return this.isRunning && !this.isPaused && !this.isModalPaused;
+            },
+
+            updateStatsUI() {
+                document.getElementById('stat-score').textContent = this.score.toLocaleString();
+                document.getElementById('stat-lines').textContent = this.lines;
+                document.getElementById('stat-level').textContent = this.level;
+            },
+
+            getGhostY() {
+                let gy = this.currentPiece.y;
+                while (!this.collides(this.currentPiece.matrix, this.currentPiece.x, gy + 1)) {
+                    gy++;
+                }
+                return gy;
+            },
+
+            drawBlock(ctx, x, y, size, color, isGhost = false) {
+                const pad = 1.5;
+                const bx = x * size + pad;
+                const by = y * size + pad;
+                const bw = size - pad * 2;
+                const bh = size - pad * 2;
+                const r = Math.max(4, size * 0.22);
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.roundRect(bx, by, bw, bh, r);
+
+                if (isGhost) {
+                    ctx.fillStyle = 'rgba(130, 100, 170, 0.14)';
+                    ctx.fill();
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = 'rgba(130, 100, 170, 0.42)';
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = color;
+                    ctx.fill();
+
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
+                    ctx.beginPath();
+                    ctx.roundRect(bx + 2, by + 2, bw - 4, bh * 0.35, r * 0.6);
+                    ctx.fill();
+
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                    ctx.stroke();
+                }
+                ctx.restore();
+            },
+
+            draw() {
+                const ctx = this.ctx;
+                const s = this.blockSize;
+                ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                ctx.strokeStyle = 'rgba(155, 126, 222, 0.12)';
+                ctx.lineWidth = 1;
+                for (let c = 1; c < COLS; c++) {
+                    ctx.beginPath();
+                    ctx.moveTo(c * s, 0);
+                    ctx.lineTo(c * s, ROWS * s);
+                    ctx.stroke();
+                }
+                for (let r = 1; r < ROWS; r++) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, r * s);
+                    ctx.lineTo(COLS * s, r * s);
+                    ctx.stroke();
+                }
+
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        if (this.board[r][c]) {
+                            this.drawBlock(ctx, c, r, s, this.board[r][c], false);
+                        }
+                    }
+                }
+
+                if (!this.currentPiece) return;
+
+                if (DIFFICULTY_CONFIG[this.mode].ghost) {
+                    const ghostY = this.getGhostY();
+                    const { matrix, x } = this.currentPiece;
+                    for (let r = 0; r < matrix.length; r++) {
+                        for (let c = 0; c < matrix[r].length; c++) {
+                            if (matrix[r][c] && ghostY + r >= 0) {
+                                this.drawBlock(ctx, x + c, ghostY + r, s, '#000', true);
+                            }
+                        }
+                    }
+                }
+
+                const { matrix, x, y, color } = this.currentPiece;
+                for (let r = 0; r < matrix.length; r++) {
+                    for (let c = 0; c < matrix[r].length; c++) {
+                        if (matrix[r][c] && y + r >= 0) {
+                            this.drawBlock(ctx, x + c, y + r, s, color, false);
+                        }
+                    }
+                }
+            },
+
+            drawMiniPiece(ctx, canvas, type) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (!type) return;
+
+                const shape = TETROMINOES[type];
+                const m = shape.matrix;
+                const size = 15;
+                const offsetX = (canvas.width - m[0].length * size) / 2;
+                const offsetY = (canvas.height - m.length * size) / 2;
+
+                ctx.save();
+                ctx.translate(offsetX, offsetY);
+                for (let r = 0; r < m.length; r++) {
+                    for (let c = 0; c < m[r].length; c++) {
+                        if (m[r][c]) {
+                            this.drawBlock(ctx, c, r, size, shape.color, false);
+                        }
+                    }
+                }
+                ctx.restore();
+            },
+
+            endGame(stoppedManually = false) {
+                this.isRunning = false;
+                if (this.animId) cancelAnimationFrame(this.animId);
+                if (!stoppedManually) SoundEngine.playPop('gameover');
+                UIController.showGameOverModal(this.score, this.lines, this.mode);
+            }
+        };
+
+        /* ==========================================================================
+           ส่วนที่ 7: ตัวควบคุม UI ป๊อปอัป และการส่งข้อมูลไป Google Sheets
+           ========================================================================== */
+        const UIController = {
+            selectedDifficulty: 'easy',
+            selectedStar: 5,
+            usedQuizIndices: new Set(),
+
+            init() {
+                this.bindMenuEvents();
+                this.bindGameControls();
+                this.bindModalEvents();
+                this.bindGasSettingsEvents();
+            },
+
+            showToast(msg) {
+                const t = document.getElementById('toast');
+                t.textContent = msg;
+                t.classList.add('show');
+                clearTimeout(this._toastTimer);
+                this._toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+            },
+
+            bindGasSettingsEvents() {
+                document.getElementById('btn-open-gas-settings').addEventListener('click', () => {
+                    SoundEngine.playPop('click');
+                    if (TetrisGame.isRunning) TetrisGame.isModalPaused = true;
+                    GASConfig.updateStatusUI();
+                    document.getElementById('modal-gas-settings').classList.add('open');
+                });
+
+                document.getElementById('btn-save-gas-url').addEventListener('click', () => {
+                    SoundEngine.playPop('click');
+                    const val = document.getElementById('gas-url-input').value.trim();
+                    if (val && !val.startsWith('https://')) {
+                        this.showToast('⚠️ กรุณากรอก URL ที่ขึ้นต้นด้วย https://');
+                        return;
+                    }
+                    GASConfig.saveUrl(val);
+                    this.showToast(val ? '✅ บันทึกลิงก์ Google Sheets เรียบร้อย!' : '🗑️ ล้างลิงก์เรียบร้อยแล้ว');
+                });
+
+                document.getElementById('btn-clear-gas-url').addEventListener('click', () => {
+                    SoundEngine.playPop('click');
+                    document.getElementById('gas-url-input').value = '';
+                    GASConfig.saveUrl('');
+                    this.showToast('🗑️ ล้างค่าลิงก์เรียบร้อยแล้ว');
+                });
+
+                document.getElementById('btn-test-gas-url').addEventListener('click', async () => {
+                    SoundEngine.playPop('click');
+                    const inputVal = document.getElementById('gas-url-input').value.trim();
+                    const targetUrl = inputVal || GASConfig.getUrl();
+
+                    if (!targetUrl) {
+                        this.showToast('⚠️ กรุณาวางลิงก์ Web App URL ก่อนทดสอบ');
+                        return;
+                    }
+                    if (inputVal) {
+                        GASConfig.saveUrl(inputVal);
+                    }
+
+                    const sent = await this.sendFeedbackToGAS({
+                        nickname: 'ระบบทดสอบ (Test)',
+                        mode: 'ทดสอบการเชื่อมต่อ',
+                        score: 999,
+                        stars: 5,
+                        comment: 'ทดสอบส่งข้อความเข้า Google Sheets สำเร็จ 🎉',
+                        timestamp: new Date().toLocaleString('th-TH')
+                    }, targetUrl);
+
+                    if (sent) {
+                        this.showToast('📨 ส่งข้อมูลทดสอบแล้ว กรุณาตรวจสอบใน Google Sheets');
+                    } else {
+                        this.showToast('❌ ส่งไม่สำเร็จ กรุณาตรวจสอบรูปแบบ URL');
+                    }
+                });
+
+                document.getElementById('btn-copy-gas-code').addEventListener('click', () => {
+                    SoundEngine.playPop('click');
+                    const codeText = document.getElementById('gas-sample-code').textContent;
+                    navigator.clipboard.writeText(codeText).then(() => {
+                        this.showToast('📋 คัดลอกโค้ด Google Apps Script แล้ว!');
+                    }).catch(() => {
+                        this.showToast('กรุณากดลากคลุมข้อความโค้ดเพื่อคัดลอก');
+                    });
+                });
+            },
+
+            bindMenuEvents() {
+                document.querySelectorAll('.diff-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        SoundEngine.playPop('click');
+                        document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.selectedDifficulty = btn.dataset.mode;
+                    });
+                });
+
+                document.getElementById('btn-start-game').addEventListener('click', () => {
+                    SoundEngine.startMusic();
+                    SoundEngine.playPop('click');
+                    TetrisGame.start(this.selectedDifficulty);
+                });
+
+                const openCodexHandler = () => {
+                    SoundEngine.playPop('click');
+                    if (TetrisGame.isRunning) TetrisGame.isModalPaused = true;
+                    this.renderCodex();
+                    document.getElementById('modal-codex').classList.add('open');
+                };
+                document.getElementById('btn-open-codex').addEventListener('click', openCodexHandler);
+                document.getElementById('btn-ingame-codex').addEventListener('click', openCodexHandler);
+
+                document.getElementById('btn-open-leaderboard').addEventListener('click', () => {
+                    SoundEngine.playPop('click');
+                    this.renderLeaderboard(this.selectedDifficulty);
+                    document.getElementById('modal-leaderboard').classList.add('open');
+                });
+
+                document.getElementById('btn-open-howto').addEventListener('click', () => {
+                    SoundEngine.playPop('click');
+                    document.getElementById('modal-howto').classList.add('open');
+                });
+
+                const wishInput = document.getElementById('wish-input');
+                const wishCount = document.getElementById('wish-char-count');
+                wishInput.addEventListener('input', () => {
+                    wishCount.textContent = `${wishInput.value.length}/60`;
+                });
+
+                document.getElementById('wish-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    SoundEngine.startMusic();
+                    if (SceneryManager.addWish(wishInput.value)) {
+                        SoundEngine.playPop('krathong');
+                        wishInput.value = '';
+                        wishCount.textContent = '0/60';
+                        this.showToast('🪷 ลอยกระทงอธิษฐานเรียบร้อยแล้ว!');
+                    } else {
+                        this.showToast('กรุณาพิมพ์คำอธิษฐานก่อนลอยกระทง');
+                    }
+                });
+
+                document.getElementById('btn-toggle-music').addEventListener('click', () => {
+                    SoundEngine.musicEnabled = !SoundEngine.musicEnabled;
+                    SoundEngine.updateAudioUI();
+                    SoundEngine.savePrefs();
+                    if (SoundEngine.musicEnabled) {
+                        SoundEngine.startMusic();
+                    } else {
+                        SoundEngine.stopMusic();
+                    }
+                    SoundEngine.playPop('click');
+                });
+
+                document.getElementById('music-volume').addEventListener('input', (e) => {
+                    SoundEngine.musicVolume = parseFloat(e.target.value);
+                    if (SoundEngine.audioElement) {
+                        SoundEngine.audioElement.volume = SoundEngine.musicVolume;
+                    }
+                    SoundEngine.savePrefs();
+                });
+
+                document.getElementById('btn-toggle-sfx').addEventListener('click', () => {
+                    SoundEngine.sfxEnabled = !SoundEngine.sfxEnabled;
+                    SoundEngine.updateAudioUI();
+                    SoundEngine.savePrefs();
+                    if (SoundEngine.sfxEnabled) SoundEngine.playPop('click');
+                });
+            },
+
+            bindGameControls() {
+                document.getElementById('btn-pause').addEventListener('click', () => {
+                    if (!TetrisGame.isRunning) return;
+                    SoundEngine.playPop('click');
+                    TetrisGame.isPaused = true;
+                    document.getElementById('modal-pause').classList.add('open');
+                });
+
+                document.getElementById('btn-resume-game').addEventListener('click', () => {
+                    SoundEngine.playPop('click');
+                    document.getElementById('modal-pause').classList.remove('open');
+                    TetrisGame.isPaused = false;
+                    TetrisGame.lastDropTime = performance.now();
+                });
+
+                document.getElementById('btn-stop').addEventListener('click', () => {
+                    if (!TetrisGame.isRunning) return;
+                    SoundEngine.playPop('click');
+                    TetrisGame.isModalPaused = true;
+                    document.getElementById('modal-stop-confirm').classList.add('open');
+                });
+
+                document.getElementById('btn-cancel-stop').addEventListener('click', () => {
+                    SoundEngine.playPop('click');
+                    document.getElementById('modal-stop-confirm').classList.remove('open');
+                    TetrisGame.isModalPaused = false;
+                    TetrisGame.lastDropTime = performance.now();
+                });
+
+                document.getElementById('btn-confirm-stop').addEventListener('click', () => {
+                    SoundEngine.playPop('click');
+                    document.getElementById('modal-stop-confirm').classList.remove('open');
+                    TetrisGame.endGame(true);
+                });
+
+                document.querySelectorAll('.ctrl-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const act = btn.dataset.action;
+                        if (act === 'left') TetrisGame.moveLeft();
+                        else if (act === 'right') TetrisGame.moveRight();
+                        else if (act === 'down') TetrisGame.moveDown(true);
+                        else if (act === 'rotate') TetrisGame.rotate();
+                        else if (act === 'hold') TetrisGame.hold();
+                        else if (act === 'drop') TetrisGame.hardDrop();
+                    });
+                });
+
+                const canvas = document.getElementById('tetris-canvas');
+                let touchStartX = 0;
+                let touchStartY = 0;
+                let touchStartTime = 0;
+
+                canvas.addEventListener('touchstart', (e) => {
+                    if (e.touches.length === 1) {
+                        touchStartX = e.touches[0].clientX;
+                        touchStartY = e.touches[0].clientY;
+                        touchStartTime = Date.now();
+                    }
+                }, { passive: true });
+
+                canvas.addEventListener('touchend', (e) => {
+                    if (!TetrisGame.canControl() || e.changedTouches.length === 0) return;
+                    const dx = e.changedTouches[0].clientX - touchStartX;
+                    const dy = e.changedTouches[0].clientY - touchStartY;
+                    const dt = Date.now() - touchStartTime;
+
+                    if (Math.abs(dx) < 18 && Math.abs(dy) < 18 && dt < 250) {
+                        TetrisGame.rotate();
+                    } else if (Math.abs(dx) > Math.abs(dy)) {
+                        if (dx > 25) TetrisGame.moveRight();
+                        else if (dx < -25) TetrisGame.moveLeft();
+                    } else {
+                        if (dy > 55 && dt < 260) TetrisGame.hardDrop();
+                        else if (dy > 25) TetrisGame.moveDown(true);
+                    }
+                }, { passive: true });
+
+                window.addEventListener('keydown', (e) => {
+                    if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+                    const controlCodes = [
+                        'KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyR', 'KeyP',
+                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'
+                    ];
+                    if (controlCodes.includes(e.code)) {
+                        e.preventDefault();
+                    }
+
+                    if (e.code === 'KeyP' && TetrisGame.isRunning && !TetrisGame.isModalPaused) {
+                        if (TetrisGame.isPaused) {
+                            document.getElementById('modal-pause').classList.remove('open');
+                            TetrisGame.isPaused = false;
+                            TetrisGame.lastDropTime = performance.now();
+                        } else {
+                            TetrisGame.isPaused = true;
+                            document.getElementById('modal-pause').classList.add('open');
+                        }
+                        return;
+                    }
+
+                    if (!TetrisGame.canControl()) return;
+
+                    switch (e.code) {
+                        case 'KeyA':
+                        case 'ArrowLeft':
+                            TetrisGame.moveLeft();
+                            break;
+                        case 'KeyD':
+                        case 'ArrowRight':
+                            TetrisGame.moveRight();
+                            break;
+                        case 'KeyW':
+                        case 'ArrowUp':
+                            if (!e.repeat) TetrisGame.rotate();
+                            break;
+                        case 'KeyS':
+                        case 'ArrowDown':
+                            TetrisGame.moveDown(true);
+                            break;
+                        case 'KeyR':
+                            if (!e.repeat) TetrisGame.hold();
+                            break;
+                        case 'Space':
+                            if (!e.repeat) TetrisGame.hardDrop();
+                            break;
+                    }
+                });
+            },
+
+            bindModalEvents() {
+                document.querySelectorAll('.modal-close-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        SoundEngine.playPop('click');
+                        btn.closest('.modal-overlay').classList.remove('open');
+                        if (TetrisGame.isRunning) {
+                            TetrisGame.isModalPaused = false;
+                            TetrisGame.lastDropTime = performance.now();
+                        }
+                    });
+                });
+
+                document.getElementById('btn-close-knowledge').addEventListener('click', () => {
+                    SoundEngine.playPop('click');
+                    document.getElementById('modal-knowledge').classList.remove('open');
+                    TetrisGame.isModalPaused = false;
+                    TetrisGame.lastDropTime = performance.now();
+                });
+
+                document.querySelectorAll('#lb-tabs .tab-btn').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        SoundEngine.playPop('click');
+                        this.renderLeaderboard(tab.dataset.lbMode);
+                    });
+                });
+
+                document.getElementById('btn-save-score').addEventListener('click', () => {
+                    SoundEngine.playPop('click');
+                    const nameInput = document.getElementById('player-name-input');
+                    StorageManager.saveScore(TetrisGame.mode, nameInput.value, TetrisGame.score, TetrisGame.lines);
+                    document.getElementById('btn-save-score').disabled = true;
+                    nameInput.disabled = true;
+                    document.getElementById('score-saved-msg').style.display = 'block';
+                });
+
+                document.querySelectorAll('#star-rating .star-btn').forEach(star => {
+                    star.addEventListener('click', () => {
+                        SoundEngine.playPop('click');
+                        this.selectedStar = parseInt(star.dataset.star, 10);
+                        document.querySelectorAll('#star-rating .star-btn').forEach(s => {
+                            const val = parseInt(s.dataset.star, 10);
+                            s.classList.toggle('active', val <= this.selectedStar);
+                        });
+                    });
+                });
+
+                document.getElementById('btn-skip-feedback').addEventListener('click', () => {
+                    SoundEngine.playPop('click');
+                    document.getElementById('feedback-section').style.display = 'none';
+                });
+
+                // ส่งฟีดแบ็กไปยัง Google Sheets
+                document.getElementById('btn-send-feedback').addEventListener('click', async () => {
+                    SoundEngine.playPop('click');
+                    const nickname = document.getElementById('player-name-input').value.trim() || 'ไม่ระบุชื่อ';
+                    const comment = document.getElementById('feedback-comment').value.trim();
+
+                    const payload = {
+                        nickname: nickname,
+                        mode: DIFFICULTY_CONFIG[TetrisGame.mode].label,
+                        score: TetrisGame.score,
+                        stars: this.selectedStar,
+                        comment: comment,
+                        timestamp: new Date().toLocaleString('th-TH')
+                    };
+
+                    const sent = await this.sendFeedbackToGAS(payload);
+
+                    document.getElementById('feedback-section').style.display = 'none';
+                    const thanksEl = document.getElementById('feedback-thanks');
+                    thanksEl.style.display = 'block';
+                    thanksEl.textContent = sent
+                        ? '🙏 ส่งความคิดเห็นเข้า Google Sheets เรียบร้อยแล้ว ขอบคุณครับ!'
+                        : '🙏 ขอบคุณสำหรับความคิดเห็น! (ยังไม่ได้เชื่อมต่อลิงก์ Google Sheets)';
+                });
+
+                document.getElementById('btn-back-menu').addEventListener('click', () => {
+                    SoundEngine.playPop('click');
+                    document.getElementById('modal-gameover').classList.remove('open');
+                    document.getElementById('game-screen').style.display = 'none';
+                    document.getElementById('menu-screen').style.display = 'flex';
+                });
+
+                document.getElementById('btn-play-again').addEventListener('click', () => {
+                    SoundEngine.playPop('click');
+                    document.getElementById('modal-gameover').classList.remove('open');
+                    TetrisGame.start(TetrisGame.mode);
+                });
+            },
+
+            showKnowledgeModal(card, isNew, includeQuiz) {
+                document.getElementById('knowledge-topic').textContent = card.topic;
+                document.getElementById('knowledge-text').textContent = card.content;
+                const progTag = document.getElementById('knowledge-progress-tag');
+                progTag.textContent = isNew ? '✨ ปลดล็อกการ์ดใหม่!' : '📖 ทบทวนความรู้';
+
+                const quizSec = document.getElementById('quiz-section');
+                const optContainer = document.getElementById('quiz-options');
+                const fbText = document.getElementById('quiz-feedback');
+                optContainer.innerHTML = '';
+                fbText.textContent = '';
+
+                if (includeQuiz) {
+                    quizSec.style.display = 'block';
+                    if (this.usedQuizIndices.size >= QUIZ_BANK.length) {
+                        this.usedQuizIndices.clear();
+                    }
+                    let qIdx;
+                    do {
+                        qIdx = Math.floor(Math.random() * QUIZ_BANK.length);
+                    } while (this.usedQuizIndices.has(qIdx));
+                    this.usedQuizIndices.add(qIdx);
+
+                    const quiz = QUIZ_BANK[qIdx];
+                    document.getElementById('quiz-question').textContent = quiz.q;
+
+                    quiz.options.forEach((optText, idx) => {
+                        const btn = document.createElement('button');
+                        btn.className = 'quiz-opt-btn';
+                        btn.textContent = `${['ก.', 'ข.', 'ค.', 'ง.'][idx]} ${optText}`;
+
+                        btn.addEventListener('click', () => {
+                            optContainer.querySelectorAll('button').forEach(b => b.disabled = true);
+                            if (idx === quiz.ans) {
+                                btn.classList.add('correct');
+                                fbText.style.color = 'var(--success)';
+                                fbText.textContent = '🎉 ถูกต้อง! รับโบนัส +300 คะแนน';
+                                TetrisGame.score += 300;
+                                TetrisGame.updateStatsUI();
+                                SoundEngine.playPop('correct');
+                            } else {
+                                btn.classList.add('wrong');
+                                optContainer.children[quiz.ans].classList.add('correct');
+                                fbText.style.color = 'var(--danger)';
+                                fbText.textContent = '💡 ยังไม่ถูก ลองดูเฉลยสีเขียวด้านบนนะ!';
+                                SoundEngine.playPop('wrong');
+                            }
+                        });
+                        optContainer.appendChild(btn);
+                    });
+                } else {
+                    quizSec.style.display = 'none';
+                }
+
+                document.getElementById('modal-knowledge').classList.add('open');
+            },
+
+            renderCodex() {
+                const list = document.getElementById('codex-list');
+                list.innerHTML = '';
+
+                KNOWLEDGE_CARDS.forEach((card, i) => {
+                    const unlocked = StorageManager.unlockedIds.has(card.id);
+                    const div = document.createElement('div');
+                    div.className = 'codex-card' + (unlocked ? '' : ' locked');
+
+                    const title = document.createElement('div');
+                    title.style.fontWeight = '700';
+                    title.style.fontSize = '14px';
+                    title.style.marginBottom = '4px';
+                    title.textContent = unlocked ? card.topic : `🔒 การ์ดความรู้ใบที่ ${i + 1} (ยังไม่ปลดล็อก)`;
+
+                    const body = document.createElement('div');
+                    body.style.fontSize = '13px';
+                    body.style.lineHeight = '1.55';
+                    body.textContent = unlocked ? card.content : 'เคลียร์แถวในเกมเพื่อเปิดอ่านเนื้อหาส่วนนี้';
+
+                    div.appendChild(title);
+                    div.appendChild(body);
+                    list.appendChild(div);
+                });
+            },
+
+            renderLeaderboard(mode) {
+                document.querySelectorAll('#lb-tabs .tab-btn').forEach(t => {
+                    t.classList.toggle('active', t.dataset.lbMode === mode);
+                });
+
+                const list = document.getElementById('lb-list');
+                list.innerHTML = '';
+                const records = StorageManager.getLeaderboard(mode);
+
+                if (records.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.style.textAlign = 'center';
+                    empty.style.padding = '20px';
+                    empty.style.color = 'var(--text-muted)';
+                    empty.textContent = 'ยังไม่มีสถิติคะแนนในโหมดนี้ มาเป็นคนแรกกันเลย!';
+                    list.appendChild(empty);
+                    return;
+                }
+
+                const medals = ['🥇', '🥈', '🥉'];
+                records.forEach((rec, idx) => {
+                    const item = document.createElement('div');
+                    item.className = 'rank-item';
+
+                    const left = document.createElement('span');
+                    const rankPrefix = medals[idx] || `#${idx + 1}`;
+                    left.textContent = `${rankPrefix} ${rec.name}`;
+
+                    const right = document.createElement('span');
+                    right.textContent = `${rec.score.toLocaleString()} คะแนน (${rec.lines} แถว)`;
+
+                    item.appendChild(left);
+                    item.appendChild(right);
+                    list.appendChild(item);
+                });
+            },
+
+            showGameOverModal(score, lines, mode) {
+                document.getElementById('final-score').textContent = score.toLocaleString();
+                document.getElementById('final-lines').textContent = lines;
+                document.getElementById('final-mode').textContent = DIFFICULTY_CONFIG[mode].label;
+
+                const nameInput = document.getElementById('player-name-input');
+                nameInput.value = '';
+                nameInput.disabled = false;
+                document.getElementById('btn-save-score').disabled = false;
+                document.getElementById('score-saved-msg').style.display = 'none';
+
+                this.selectedStar = 5;
+                document.querySelectorAll('#star-rating .star-btn').forEach(s => s.classList.add('active'));
+                document.getElementById('feedback-comment').value = '';
+                document.getElementById('feedback-section').style.display = 'block';
+                document.getElementById('feedback-thanks').style.display = 'none';
+
+                document.getElementById('modal-gameover').classList.add('open');
+            },
+
+            // ส่งข้อมูลฟีดแบ็กไปยัง Google Apps Script (รองรับทั้ง fetch และ sendBeacon)
+            async sendFeedbackToGAS(payload, overrideUrl = null) {
+                const targetUrl = (overrideUrl || GASConfig.getUrl()).trim();
+                if (!targetUrl) return false;
+
+                try {
+                    const bodyStr = JSON.stringify(payload);
+                    await fetch(targetUrl, {
+                        method: "POST",
+                        mode: "no-cors",
+                        keepalive: true,
+                        headers: {
+                            "Content-Type": "text/plain;charset=utf-8"
+                        },
+                        body: bodyStr
+                    });
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+        };
+
+        /* ==========================================================================
+           ส่วนที่ 8: เริ่มต้นระบบทั้งหมดเมื่อโหลดหน้าเว็บเสร็จสมบูรณ์
+           ========================================================================== */
+        window.addEventListener('DOMContentLoaded', () => {
+            GASConfig.updateStatusUI();
+            SoundEngine.init();
+            SceneryManager.init();
+            StorageManager.init();
+            TetrisGame.init();
+            UIController.init();
+        });
+    </script>
+</body>
+</html>
